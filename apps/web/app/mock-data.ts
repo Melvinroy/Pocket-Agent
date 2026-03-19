@@ -74,6 +74,16 @@ export type CommandLogSummary = {
   createdAt: string;
 };
 
+export type ReviewQueueItem = {
+  id: string;
+  workspaceId: string;
+  threadId: string;
+  title: string;
+  status: 'pending' | 'active' | 'recent';
+  summary: string;
+  updatedAt: string;
+};
+
 export const shellState = {
   deviceName: 'Melvin iPhone',
   role: 'controller',
@@ -282,6 +292,39 @@ export const commandLogs: CommandLogSummary[] = [
   },
 ];
 
+export const reviewQueue: ReviewQueueItem[] = [
+  {
+    id: 'review-1',
+    workspaceId: 'pocket-agent',
+    threadId: 'thread-pairing-gateway',
+    title: 'Pairing gateway transport review',
+    status: 'active',
+    summary:
+      'Review is active on the pairing gateway follow-up thread while websocket rollout is verified.',
+    updatedAt: '16 min ago',
+  },
+  {
+    id: 'review-2',
+    workspaceId: 'pocket-agent',
+    threadId: 'thread-mobile-shell',
+    title: 'Mobile shell preview build approval',
+    status: 'pending',
+    summary:
+      'A pending approval is blocking the next review handoff for the mobile shell thread.',
+    updatedAt: '2 min ago',
+  },
+  {
+    id: 'review-3',
+    workspaceId: 'release-hardening',
+    threadId: 'thread-release-notes',
+    title: 'Threat model draft follow-up',
+    status: 'recent',
+    summary:
+      'The last host review started from the editor and is waiting for the next operator pass.',
+    updatedAt: '1 h ago',
+  },
+];
+
 const fileContentsByWorkspace: Record<string, Record<string, string>> = {
   'pocket-agent': {
     'apps/web/app/screens.tsx':
@@ -340,4 +383,8 @@ export function getWorkspaceFileContent(workspaceId: string, path: string) {
     fileContentsByWorkspace[workspaceId]?.[path] ??
     `// No seeded content for ${path}\n`
   );
+}
+
+export function getReviewQueueItems() {
+  return reviewQueue;
 }

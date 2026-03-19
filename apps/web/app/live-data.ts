@@ -7,11 +7,13 @@ import {
   getThreadFiles,
   getThreadPresets,
   getThreadTimeline,
+  getReviewQueueItems,
   getWorkspace,
   getWorkspaceFileContent,
   getWorkspaceFiles,
   getWorkspaceThreads,
   getWorkspaceWorktrees,
+  type ReviewQueueItem,
   shellState,
   type TerminalPresetSummary,
   type ThreadSummary,
@@ -194,6 +196,52 @@ function mapThread(thread: ThreadPayload): ThreadSummary {
   };
 }
 
+function mapReviewQueueItem(
+  workspaceId: string,
+  thread: ThreadPayload,
+): ReviewQueueItem | null {
+  if (thread.pendingApprovals > 0) {
+    return {
+      id: `${thread.id}:pending-review`,
+      workspaceId,
+      threadId: thread.id,
+      title: `${thread.title} approval gate`,
+      status: 'pending',
+      summary: `${thread.pendingApprovals} host approval${thread.pendingApprovals === 1 ? '' : 's'} waiting before review can continue.`,
+      updatedAt: thread.updatedAt,
+    };
+  }
+
+  if (thread.status === 'review') {
+    return {
+      id: `${thread.id}:active-review`,
+      workspaceId,
+      threadId: thread.id,
+      title: `${thread.title} review`,
+      status: 'active',
+      summary: thread.latestEventSummary,
+      updatedAt: thread.updatedAt,
+    };
+  }
+
+  if (
+    thread.latestEventName === 'thread.updated' &&
+    thread.latestEventSummary.toLowerCase().includes('review')
+  ) {
+    return {
+      id: `${thread.id}:recent-review`,
+      workspaceId,
+      threadId: thread.id,
+      title: `${thread.title} recent review`,
+      status: 'recent',
+      summary: thread.latestEventSummary,
+      updatedAt: thread.updatedAt,
+    };
+  }
+
+  return null;
+}
+
 function summarizePayload(payload: Record<string, unknown>): string {
   if (typeof payload.summary === 'string' && payload.summary) {
     return payload.summary;
@@ -339,24 +387,38 @@ export async function getHomeView() {
       shell: shellState,
       workspaces,
       featuredThread: threads[0] ?? null,
+      reviewQueue: getReviewQueueItems(),
       transport: await buildTransportConfig(),
     };
   }
 
   const mappedWorkspaces = workspacePayload.workspaces.map(mapWorkspace);
-  const featuredWorkspaceId = workspacePayload.workspaces[0]?.id;
-  const threadPayload = featuredWorkspaceId
-    ? await fetchHostJson<{ threads: ThreadPayload[] }>(
-        `/api/workspaces/${featuredWorkspaceId}/threads`,
-      )
-    : null;
+  const threadPayloads = await Promise.all(
+    workspacePayload.workspaces.map(async (workspace) => ({
+      workspaceId: workspace.id,
+      payload: await fetchHostJson<{ threads: ThreadPayload[] }>(
+        `/api/workspaces/${workspace.id}/threads`,
+      ),
+    })),
+  );
+  const allThreads = threadPayloads.flatMap(
+    ({ workspaceId, payload }) =>
+      payload?.threads.map((thread) => ({
+        workspaceId,
+        thread,
+      })) ?? [],
+  );
+  const reviewQueue = allThreads
+    .map(({ workspaceId, thread }) => mapReviewQueueItem(workspaceId, thread))
+    .filter((item): item is ReviewQueueItem => item !== null);
 
   return {
     shell: mapShellState(session),
     workspaces: mappedWorkspaces,
-    featuredThread: threadPayload?.threads[0]
-      ? mapThread(threadPayload.threads[0])
+    featuredThread: allThreads[0]?.thread
+      ? mapThread(allThreads[0].thread)
       : null,
+    reviewQueue,
     transport: await buildTransportConfig(),
   };
 }

@@ -25,11 +25,13 @@ import {
   type ApprovalSummary,
   type CommandLogSummary,
   type FileChangeSummary,
+  getReviewQueueItems,
   getThread,
   getThreadApprovals,
   getThreadCommandLogs,
   getThreadFiles,
   getThreadPresets,
+  type ReviewQueueItem,
   getThreadTimeline,
   type TerminalPresetSummary,
   type ThreadSummary,
@@ -81,6 +83,18 @@ function approvalTone(status: string) {
   return 'warning';
 }
 
+function reviewTone(status: ReviewQueueItem['status']) {
+  if (status === 'active') {
+    return 'success';
+  }
+
+  if (status === 'pending') {
+    return 'warning';
+  }
+
+  return 'neutral';
+}
+
 function ShellMeta({ shell }: { shell: ShellStateView }) {
   return (
     <div
@@ -101,11 +115,13 @@ export function HomeScreen({
   shell = shellState,
   workspaceItems = workspaces,
   featuredThread = threads[0] ?? null,
+  reviewQueueItems = getReviewQueueItems(),
   connectPanel,
 }: {
   shell?: ShellStateView;
   workspaceItems?: WorkspaceSummary[];
   featuredThread?: ThreadSummary | null;
+  reviewQueueItems?: ReviewQueueItem[];
   connectPanel?: React.ReactNode;
 }) {
   return (
@@ -216,6 +232,41 @@ export function HomeScreen({
           </>
         ) : (
           <StatusPill tone="neutral">No active thread</StatusPill>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title="Review queue"
+        subtitle="Track review-ready threads and approval gates across workspaces without hunting through each thread shell."
+        action={<StatusPill tone="neutral">host projected</StatusPill>}
+      >
+        {reviewQueueItems.length > 0 ? (
+          <DetailList
+            items={reviewQueueItems.map((reviewItem) => ({
+              id: reviewItem.id,
+              title: (
+                <Link
+                  href={`/workspaces/${reviewItem.workspaceId}/threads/${reviewItem.threadId}`}
+                  style={{ textDecoration: 'none' }}
+                >
+                  {reviewItem.title}
+                </Link>
+              ),
+              body: (
+                <>
+                  <div>{reviewItem.summary}</div>
+                  <div>{reviewItem.updatedAt}</div>
+                </>
+              ),
+              badge: (
+                <StatusPill tone={reviewTone(reviewItem.status)}>
+                  {reviewItem.status}
+                </StatusPill>
+              ),
+            }))}
+          />
+        ) : (
+          <StatusPill tone="neutral">No queued reviews</StatusPill>
         )}
       </SectionCard>
     </PhoneShell>

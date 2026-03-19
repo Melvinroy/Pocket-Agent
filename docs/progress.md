@@ -120,3 +120,10 @@
 - Added a local proxy route for thread review start and a review launcher on the workspace file page when a thread context is present.
 - Added browser coverage for controller-gated host review start from the web editor.
 - Promoted the repository version to `1.7.0` and added review flow milestone documentation.
+
+### Web review queue
+
+- Created the `codex/feat/web-review-queue` slice for cross-workspace review discovery from the dashboard.
+- Added seeded and live review queue projections so review-ready threads and approval gates surface on the home screen.
+- Added browser coverage for review queue rendering and thread deep links from the home route.
+- Promoted the repository version to `1.8.0` and added review queue milestone documentation.

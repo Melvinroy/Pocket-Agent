@@ -12,6 +12,7 @@ export default async function HomePage() {
       shell={view.shell}
       workspaceItems={view.workspaces}
       featuredThread={view.featuredThread}
+      reviewQueueItems={view.reviewQueue}
       connectPanel={<ConnectPanel connected={view.transport.enabled} />}
     />
   );
