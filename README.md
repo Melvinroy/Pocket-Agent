@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-This repository is in active bootstrap. Version `0.8.0` adds host-side worktree discovery and binding, terminal preset execution in the bound cwd, and matching worktree and terminal surfaces in the remote shell.
+This repository is in active bootstrap. Version `0.9.0` adds OSS hardening deliverables including install and operator docs, a threat model, release checklist, and a stricter compatibility matrix for public development.
 
 ## Principles
 
@@ -41,6 +41,13 @@ corepack pnpm build
 ## Compatibility
 
 See `docs/compatibility-matrix.md` for the pinned bootstrap assumptions about Codex host runtime and future App Server integration.
+
+## Operator docs
+
+- `docs/install.md`: local installation and first-run setup
+- `docs/operator-guide.md`: day-to-day host operation, pairing, and recovery guidance
+- `docs/threat-model.md`: trust boundaries, attack surfaces, and mitigations
+- `docs/release-checklist.md`: release readiness checks for milestone tags
 
 ## Workflow
 

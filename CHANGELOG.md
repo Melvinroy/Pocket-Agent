@@ -50,6 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Thread and workspace shell surfaces for worktree selection and host-side lint, test, and build presets.
 - Integration coverage for worktree binding and preset execution with a host command runner seam.
 
+## [0.9.0] - 2026-03-19
+
+### Added
+
+- Install, operator, threat-model, and release-checklist docs for OSS readiness.
+- Expanded contributor guidance and compatibility assumptions for public development.
+- Release notes and PR summary scaffolding for the OSS hardening milestone.
+
 ## [0.3.0] - 2026-03-19
 
 ### Added

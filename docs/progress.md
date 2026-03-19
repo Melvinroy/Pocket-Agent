@@ -57,3 +57,10 @@
 - Added workspace-manager helpers for worktree discovery, worktree rebinding, and terminal preset command resolution.
 - Added host gateway routes for worktree list, thread worktree bind, and terminal preset execution, with matching shell surfaces.
 - Promoted the repository version to `0.8.0` and added terminal milestone release documentation.
+
+### OSS hardening
+
+- Created the `codex/chore/oss-hardening` slice for public-release readiness work.
+- Added install, operator, threat-model, and release-checklist docs.
+- Tightened contributor guidance and the compatibility matrix for supported runtime assumptions.
+- Promoted the repository version to `0.9.0` and added OSS hardening release documentation.
