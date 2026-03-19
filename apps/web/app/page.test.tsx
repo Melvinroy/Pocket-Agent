@@ -25,6 +25,7 @@ describe('mobile shell routes', () => {
     ).toBeGreaterThan(1);
     expect(screen.getByText('Lease state')).toBeTruthy();
     expect(screen.getByText('Changed files')).toBeTruthy();
+    expect(screen.getByText('Worktrees')).toBeTruthy();
     expect(screen.getByText('Pairing gateway follow-up')).toBeTruthy();
   });
 
@@ -45,6 +46,8 @@ describe('mobile shell routes', () => {
     expect(
       screen.getAllByText('apps/hostd/src/lib/gateway.ts').length,
     ).toBeGreaterThan(1);
+    expect(screen.getByText('Terminal presets')).toBeTruthy();
+    expect(screen.getByText('feature-mobile')).toBeTruthy();
     expect(screen.getByText('Send a steer or continue prompt')).toBeTruthy();
     expect(screen.getByText('Reconnect UX stubbed')).toBeTruthy();
   });

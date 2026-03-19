@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-This repository is in active bootstrap. Version `0.7.0` adds host-safe file browsing and light editing, changed-file surfaces in the web shell, and a review start flow that stays behind the host gateway.
+This repository is in active bootstrap. Version `0.8.0` adds host-side worktree discovery and binding, terminal preset execution in the bound cwd, and matching worktree and terminal surfaces in the remote shell.
 
 ## Principles
 

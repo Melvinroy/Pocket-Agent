@@ -62,6 +62,13 @@ async function seedThreadState(sessionStore: SessionStore) {
   );
   fs.writeFileSync(path.join(rootPath, 'README.md'), '# Pocket Agent\n');
   fs.mkdirSync(path.join(rootPath, 'src'), { recursive: true });
+  fs.mkdirSync(path.join(rootPath, '.worktrees', 'feature-ui'), {
+    recursive: true,
+  });
+  fs.writeFileSync(
+    path.join(rootPath, '.worktrees', 'feature-ui', 'README.md'),
+    '# Feature UI\n',
+  );
   fs.writeFileSync(
     path.join(rootPath, 'src', 'app.ts'),
     'export const app = 1;\n',
@@ -267,6 +274,11 @@ describe('host gateway', () => {
       pairingService: new PairingService({
         now: fixedNow,
       }),
+      commandRunner: async ({ cwd }) => ({
+        exitCode: 0,
+        stdout: `preset ran in ${cwd}`,
+        stderr: '',
+      }),
       sessionStore,
       policy: DEFAULT_SECURITY_POLICY,
     });
@@ -405,7 +417,44 @@ describe('host gateway', () => {
     };
 
     expect(filesResponse.status).toBe(200);
-    expect(filesPayload.entries[0]?.name).toBe('src');
+    expect(filesPayload.entries.map((entry) => entry.name)).toContain('src');
+
+    const worktreesResponse = await fetch(
+      `http://127.0.0.1:${port}/api/workspaces/workspace-1/worktrees`,
+      {
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+        },
+      },
+    );
+    const worktreesPayload = (await worktreesResponse.json()) as {
+      worktrees: Array<{ name: string; active: boolean }>;
+    };
+
+    expect(worktreesResponse.status).toBe(200);
+    expect(worktreesPayload.worktrees.map((worktree) => worktree.name)).toEqual(
+      ['root', 'feature-ui'],
+    );
+
+    const bindResponse = await fetch(
+      `http://127.0.0.1:${port}/api/threads/thread-1/worktree`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          path: '.worktrees/feature-ui',
+        }),
+      },
+    );
+    const bindPayload = (await bindResponse.json()) as {
+      worktreePath: string;
+    };
+
+    expect(bindResponse.status).toBe(200);
+    expect(bindPayload.worktreePath).toContain('.worktrees');
 
     const readResponse = await fetch(
       `http://127.0.0.1:${port}/api/workspaces/workspace-1/file?path=README.md`,
@@ -461,5 +510,30 @@ describe('host gateway', () => {
     expect(reviewResponse.status).toBe(202);
     expect(reviewPayload.event.kind).toBe('thread.updated');
     expect(reviewPayload.event.payload.reviewStarted).toBe(true);
+
+    const presetResponse = await fetch(
+      `http://127.0.0.1:${port}/api/threads/thread-1/commands/preset`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          preset: 'test',
+        }),
+      },
+    );
+    const presetPayload = (await presetResponse.json()) as {
+      cwd: string;
+      result: { exitCode: number; stdout: string };
+      event: { kind: string };
+    };
+
+    expect(presetResponse.status).toBe(200);
+    expect(presetPayload.cwd).toContain('.worktrees');
+    expect(presetPayload.result.exitCode).toBe(0);
+    expect(presetPayload.result.stdout).toContain('preset ran');
+    expect(presetPayload.event.kind).toBe('turn.output');
   });
 });

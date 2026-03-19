@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import {
   createServer,
   type IncomingMessage,
@@ -26,8 +27,11 @@ import type {
   ThreadRecord,
 } from '@codex-remote/session-store';
 import {
+  bindWorkspaceWorktree,
   listWorkspaceEntries,
+  listWorkspaceWorktrees,
   readWorkspaceFile,
+  resolveTerminalPresetCommand,
   writeWorkspaceFile,
 } from '@codex-remote/workspace-manager';
 
@@ -49,6 +53,7 @@ interface GatewayContext {
   sessionStore: SessionStore;
   policy: SecurityPolicy;
   now?: () => Date;
+  commandRunner?: CommandRunner;
 }
 
 interface SteerBody {
@@ -72,6 +77,26 @@ interface ReviewStartBody {
   path?: string;
   summary?: string;
 }
+
+interface WorktreeBindBody {
+  path?: string;
+}
+
+interface PresetRunBody {
+  preset?: 'lint' | 'test' | 'build';
+}
+
+export interface CommandRunResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+export type CommandRunner = (options: {
+  command: string;
+  argv: string[];
+  cwd: string;
+}) => Promise<CommandRunResult>;
 
 export interface HostGateway {
   server: ReturnType<typeof createServer>;
@@ -225,6 +250,36 @@ async function appendThreadEvent(
   return nextEvent;
 }
 
+async function resolveThreadWorkspaceBinding(
+  sessionStore: SessionStore,
+  thread: ThreadRecord,
+) {
+  const workspace = await sessionStore.getWorkspace(thread.workspaceId);
+
+  if (!workspace) {
+    throw new Error('Workspace not found');
+  }
+
+  const events = await sessionStore.replayThread(thread.id);
+  const boundEvent = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.kind === 'thread.updated' &&
+        typeof event.payload.worktreePath === 'string',
+    );
+  const activeWorktreePath =
+    typeof boundEvent?.payload.worktreePath === 'string'
+      ? String(boundEvent.payload.worktreePath)
+      : workspace.rootPath;
+
+  return {
+    workspaceId: workspace.id,
+    rootPath: workspace.rootPath,
+    activeWorktreePath,
+  };
+}
+
 async function appendAudit(
   sessionStore: SessionStore,
   action: string,
@@ -243,8 +298,37 @@ async function appendAudit(
   await sessionStore.appendAuditLog(entry);
 }
 
+function createDefaultCommandRunner(): CommandRunner {
+  return async ({ command, argv, cwd }) =>
+    new Promise<CommandRunResult>((resolve, reject) => {
+      const child = spawn(command, argv, {
+        cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+      });
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk.toString();
+      });
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk.toString();
+      });
+      child.on('error', reject);
+      child.on('close', (exitCode) => {
+        resolve({
+          exitCode: exitCode ?? 1,
+          stdout,
+          stderr,
+        });
+      });
+    });
+}
+
 export function createHostGateway(context: GatewayContext): HostGateway {
   const now = context.now ?? (() => new Date());
+  const commandRunner = context.commandRunner ?? createDefaultCommandRunner();
   const server = createServer(async (request, response) => {
     const { method = 'GET', url = '/' } = request;
 
@@ -824,6 +908,180 @@ export function createHostGateway(context: GatewayContext): HostGateway {
 
       writeJson(response, 202, {
         accepted: true,
+        event,
+      });
+      return;
+    }
+
+    const worktreesMatch = routeMatch(
+      url,
+      /^\/api\/workspaces\/([^/]+)\/worktrees$/,
+    );
+
+    if (method === 'GET' && worktreesMatch) {
+      const auth = await authenticateRequest(request, context.pairingService);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const workspace = await context.sessionStore.getWorkspace(
+        worktreesMatch[1]!,
+      );
+
+      if (!workspace) {
+        writeJson(response, 404, { error: 'Workspace not found' });
+        return;
+      }
+
+      const worktrees = await listWorkspaceWorktrees({
+        workspaceId: workspace.id,
+        rootPath: workspace.rootPath,
+        activeWorktreePath: workspace.rootPath,
+      });
+
+      writeJson(response, 200, {
+        workspaceId: workspace.id,
+        worktrees,
+      });
+      return;
+    }
+
+    const bindMatch = routeMatch(url, /^\/api\/threads\/([^/]+)\/worktree$/);
+
+    if (method === 'POST' && bindMatch) {
+      const auth = await requireController(request, context, now);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const body = await readJson<WorktreeBindBody>(request);
+      if (!body.path) {
+        writeJson(response, 400, { error: 'Missing worktree path' });
+        return;
+      }
+
+      const thread = await context.sessionStore.getThread(bindMatch[1]!);
+
+      if (!thread) {
+        writeJson(response, 404, { error: 'Thread not found' });
+        return;
+      }
+
+      const binding = await resolveThreadWorkspaceBinding(
+        context.sessionStore,
+        thread,
+      );
+      const rebound = bindWorkspaceWorktree(binding, body.path);
+      const createdAt = now().toISOString();
+      const event = await appendThreadEvent(
+        context.sessionStore,
+        thread,
+        {
+          threadId: thread.id,
+          kind: 'thread.updated',
+          payload: {
+            worktreePath: rebound.activeWorktreePath,
+            actorDeviceId: auth.authenticated.deviceId,
+          },
+        },
+        createdAt,
+      );
+
+      await appendAudit(
+        context.sessionStore,
+        'thread.worktree.bound',
+        auth.authenticated.deviceId,
+        {
+          threadId: thread.id,
+          worktreePath: rebound.activeWorktreePath,
+        },
+        createdAt,
+      );
+
+      writeJson(response, 200, {
+        threadId: thread.id,
+        worktreePath: rebound.activeWorktreePath,
+        event,
+      });
+      return;
+    }
+
+    const presetMatch = routeMatch(
+      url,
+      /^\/api\/threads\/([^/]+)\/commands\/preset$/,
+    );
+
+    if (method === 'POST' && presetMatch) {
+      const auth = await requireController(request, context, now);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const body = await readJson<PresetRunBody>(request);
+      if (!body.preset) {
+        writeJson(response, 400, { error: 'Missing terminal preset' });
+        return;
+      }
+
+      const thread = await context.sessionStore.getThread(presetMatch[1]!);
+
+      if (!thread) {
+        writeJson(response, 404, { error: 'Thread not found' });
+        return;
+      }
+
+      const binding = await resolveThreadWorkspaceBinding(
+        context.sessionStore,
+        thread,
+      );
+      const preset = resolveTerminalPresetCommand(body.preset);
+      const result = await commandRunner({
+        command: preset.command,
+        argv: preset.argv,
+        cwd: binding.activeWorktreePath,
+      });
+      const createdAt = now().toISOString();
+      const event = await appendThreadEvent(
+        context.sessionStore,
+        thread,
+        {
+          threadId: thread.id,
+          kind: 'turn.output',
+          payload: {
+            preset: body.preset,
+            cwd: binding.activeWorktreePath,
+            exitCode: result.exitCode,
+            stdout: result.stdout,
+            stderr: result.stderr,
+            actorDeviceId: auth.authenticated.deviceId,
+          },
+        },
+        createdAt,
+      );
+
+      await appendAudit(
+        context.sessionStore,
+        'command.preset.executed',
+        auth.authenticated.deviceId,
+        {
+          threadId: thread.id,
+          preset: body.preset,
+          cwd: binding.activeWorktreePath,
+          exitCode: result.exitCode,
+        },
+        createdAt,
+      );
+
+      writeJson(response, 200, {
+        preset: body.preset,
+        cwd: binding.activeWorktreePath,
+        result,
         event,
       });
       return;

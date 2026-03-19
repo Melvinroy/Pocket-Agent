@@ -14,6 +14,21 @@ export interface WorkspaceFileEntry {
   size: number;
 }
 
+export interface WorkspaceWorktree {
+  id: string;
+  name: string;
+  path: string;
+  active: boolean;
+}
+
+export type TerminalPreset = 'lint' | 'test' | 'build';
+
+export interface TerminalPresetCommand {
+  preset: TerminalPreset;
+  command: string;
+  argv: string[];
+}
+
 export function resolveWorkspaceBinding(binding: WorkspaceBinding): string {
   return binding.activeWorktreePath || binding.rootPath;
 }
@@ -82,4 +97,79 @@ export async function writeWorkspaceFile(
   const absolutePath = resolveWorkspacePath(binding, relativePath);
   await mkdir(path.dirname(absolutePath), { recursive: true });
   await writeFile(absolutePath, contents, 'utf8');
+}
+
+export async function listWorkspaceWorktrees(
+  binding: WorkspaceBinding,
+): Promise<WorkspaceWorktree[]> {
+  const rootPath = binding.rootPath;
+  const worktreesDir = path.join(rootPath, '.worktrees');
+  const worktrees: WorkspaceWorktree[] = [
+    {
+      id: 'root',
+      name: 'root',
+      path: rootPath,
+      active: resolveWorkspaceBinding(binding) === rootPath,
+    },
+  ];
+
+  try {
+    const entries = await readdir(worktreesDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const worktreePath = path.join(worktreesDir, entry.name);
+      worktrees.push({
+        id: entry.name,
+        name: entry.name,
+        path: worktreePath,
+        active: resolveWorkspaceBinding(binding) === worktreePath,
+      });
+    }
+  } catch {
+    return worktrees;
+  }
+
+  return worktrees;
+}
+
+export function bindWorkspaceWorktree(
+  binding: WorkspaceBinding,
+  worktreePath: string,
+): WorkspaceBinding {
+  const resolvedPath =
+    worktreePath === 'root'
+      ? binding.rootPath
+      : resolveWorkspacePath(
+          {
+            ...binding,
+            activeWorktreePath: binding.rootPath,
+          },
+          worktreePath,
+        );
+
+  return {
+    ...binding,
+    activeWorktreePath: resolvedPath,
+  };
+}
+
+export function resolveTerminalPresetCommand(
+  preset: TerminalPreset,
+): TerminalPresetCommand {
+  const mapping: Record<TerminalPreset, string[]> = {
+    lint: ['corepack', 'pnpm', 'lint'],
+    test: ['corepack', 'pnpm', 'test'],
+    build: ['corepack', 'pnpm', 'build'],
+  };
+  const argv = mapping[preset];
+
+  return {
+    preset,
+    command: argv[0]!,
+    argv: argv.slice(1),
+  };
 }

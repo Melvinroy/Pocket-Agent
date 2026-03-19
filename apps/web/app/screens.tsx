@@ -16,9 +16,11 @@ import {
   getThread,
   getThreadApprovals,
   getThreadFiles,
+  getThreadPresets,
   getThreadTimeline,
   getWorkspace,
   getWorkspaceFiles,
+  getWorkspaceWorktrees,
   getWorkspaceThreads,
   shellState,
   threads,
@@ -210,6 +212,7 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
 
   const workspaceThreads = getWorkspaceThreads(workspace.id);
   const workspaceFiles = getWorkspaceFiles(workspace.id);
+  const workspaceWorktrees = getWorkspaceWorktrees(workspace.id);
 
   return (
     <PhoneShell
@@ -313,6 +316,24 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
           }))}
         />
       </SectionCard>
+
+      <SectionCard
+        title="Worktrees"
+        subtitle="Bind active threads to a host-side worktree before running presets."
+      >
+        <DetailList
+          items={workspaceWorktrees.map((worktree) => ({
+            id: worktree.id,
+            title: worktree.name,
+            body: worktree.path,
+            badge: (
+              <StatusPill tone={worktree.active ? 'success' : 'neutral'}>
+                {worktree.active ? 'active' : 'available'}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
     </PhoneShell>
   );
 }
@@ -329,6 +350,7 @@ export function ThreadScreen({
   const timeline = getThreadTimeline(threadId);
   const approvals = getThreadApprovals(threadId);
   const changedFiles = getThreadFiles(threadId);
+  const presets = getThreadPresets(threadId);
 
   if (!workspace || !thread) {
     return (
@@ -441,6 +463,32 @@ export function ThreadScreen({
             badge: (
               <StatusPill tone={file.status === 'new' ? 'success' : 'neutral'}>
                 {file.status}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Terminal presets"
+        subtitle="Host-side lint, test, and build actions run inside the bound worktree cwd."
+      >
+        <DetailList
+          items={presets.map((preset) => ({
+            id: preset.id,
+            title: preset.preset,
+            body: `${preset.cwd} | ${preset.status}`,
+            badge: (
+              <StatusPill
+                tone={
+                  preset.status === 'last-run'
+                    ? 'success'
+                    : preset.status === 'ready'
+                      ? 'warning'
+                      : 'neutral'
+                }
+              >
+                {preset.status}
               </StatusPill>
             ),
           }))}

@@ -41,6 +41,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed-file and review surfaces in the workspace and thread mobile shell views.
 - Gateway and workspace-manager coverage for file operations and review triggers.
 
+## [0.8.0] - 2026-03-19
+
+### Added
+
+- Workspace worktree discovery and binding helpers.
+- Host gateway routes for worktree listing, thread worktree binding, and terminal preset execution.
+- Thread and workspace shell surfaces for worktree selection and host-side lint, test, and build presets.
+- Integration coverage for worktree binding and preset execution with a host command runner seam.
+
 ## [0.3.0] - 2026-03-19
 
 ### Added

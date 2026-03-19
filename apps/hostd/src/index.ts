@@ -22,7 +22,7 @@ export async function run(argv = process.argv.slice(2)): Promise<string> {
     const capabilities = await createBridgeCapabilities(bridge);
     const payload = {
       status: 'ok',
-      version: '0.4.0',
+      version: '0.8.0',
       host: config,
       policy: DEFAULT_SECURITY_POLICY,
       bridge: capabilities,

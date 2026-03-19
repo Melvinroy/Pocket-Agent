@@ -47,6 +47,22 @@ export type FileChangeSummary = {
   summary: string;
 };
 
+export type WorktreeSummary = {
+  id: string;
+  workspaceId: string;
+  name: string;
+  path: string;
+  active: boolean;
+};
+
+export type TerminalPresetSummary = {
+  id: string;
+  threadId: string;
+  preset: 'lint' | 'test' | 'build';
+  cwd: string;
+  status: 'idle' | 'ready' | 'last-run';
+};
+
 export const shellState = {
   deviceName: 'Melvin iPhone',
   role: 'controller',
@@ -201,6 +217,47 @@ export const fileChanges: FileChangeSummary[] = [
   },
 ];
 
+export const worktrees: WorktreeSummary[] = [
+  {
+    id: 'wt-root',
+    workspaceId: 'pocket-agent',
+    name: 'root',
+    path: 'C:/Users/melvi/OneDrive/Desktop/Codex Remote',
+    active: false,
+  },
+  {
+    id: 'wt-mobile',
+    workspaceId: 'pocket-agent',
+    name: 'feature-mobile',
+    path: 'C:/Users/melvi/OneDrive/Desktop/Codex Remote/.worktrees/feature-mobile',
+    active: true,
+  },
+];
+
+export const terminalPresets: TerminalPresetSummary[] = [
+  {
+    id: 'preset-1',
+    threadId: 'thread-mobile-shell',
+    preset: 'test',
+    cwd: '.worktrees/feature-mobile',
+    status: 'last-run',
+  },
+  {
+    id: 'preset-2',
+    threadId: 'thread-mobile-shell',
+    preset: 'lint',
+    cwd: '.worktrees/feature-mobile',
+    status: 'ready',
+  },
+  {
+    id: 'preset-3',
+    threadId: 'thread-release-notes',
+    preset: 'build',
+    cwd: 'root',
+    status: 'idle',
+  },
+];
+
 export function getWorkspace(workspaceId: string) {
   return workspaces.find((workspace) => workspace.id === workspaceId);
 }
@@ -227,4 +284,12 @@ export function getWorkspaceFiles(workspaceId: string) {
 
 export function getThreadFiles(threadId: string) {
   return fileChanges.filter((file) => file.threadId === threadId);
+}
+
+export function getWorkspaceWorktrees(workspaceId: string) {
+  return worktrees.filter((worktree) => worktree.workspaceId === workspaceId);
+}
+
+export function getThreadPresets(threadId: string) {
+  return terminalPresets.filter((preset) => preset.threadId === threadId);
 }

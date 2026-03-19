@@ -50,3 +50,10 @@
 - Added workspace-manager helpers for safe file listing, reading, and writing within the active workspace boundary.
 - Added host gateway routes for file browse, file read, file write, and review start, with matching shell surfaces for changed files.
 - Promoted the repository version to `0.7.0` and added files milestone release documentation.
+
+### Terminal and worktrees
+
+- Created the `codex/feat/terminal-worktrees` slice for host-side cwd binding and preset execution.
+- Added workspace-manager helpers for worktree discovery, worktree rebinding, and terminal preset command resolution.
+- Added host gateway routes for worktree list, thread worktree bind, and terminal preset execution, with matching shell surfaces.
+- Promoted the repository version to `0.8.0` and added terminal milestone release documentation.
