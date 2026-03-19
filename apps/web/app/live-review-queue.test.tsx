@@ -6,10 +6,12 @@ import { LiveReviewQueue } from './live-review-queue';
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
+  static OPEN = 1;
   private readonly listeners = new Map<
     string,
     Array<(event: { data?: string }) => void>
   >();
+  readyState = 0;
 
   constructor(public readonly url: string | URL) {
     MockWebSocket.instances.push(this);
@@ -25,6 +27,10 @@ class MockWebSocket {
   close = vi.fn();
 
   emit(type: string, event: { data?: string }) {
+    if (type === 'open') {
+      this.readyState = MockWebSocket.OPEN;
+    }
+
     for (const listener of this.listeners.get(type) ?? []) {
       listener(event);
     }

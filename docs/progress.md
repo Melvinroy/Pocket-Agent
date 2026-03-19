@@ -148,3 +148,10 @@
 - Added typed review subscription messages to the transport contract and host gateway support for review snapshot broadcasts.
 - Added a live review queue client that updates `/reviews` counts and items without route refreshes.
 - Promoted the repository version to `1.11.0` and added live review stream milestone documentation.
+
+### Shared live transport
+
+- Created the `codex/feat/shared-live-transport` slice for websocket reuse across concurrent live views.
+- Added a shared web host transport client that multiplexes one websocket connection across thread timeline, command output, and review queue subscriptions.
+- Added browser coverage to prove timeline and command console views share the same socket subscription for a thread.
+- Promoted the repository version to `1.12.0` and added shared live transport milestone documentation.

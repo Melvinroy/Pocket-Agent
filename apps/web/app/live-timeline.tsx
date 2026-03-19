@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { TimelinePreview } from '@pocket-agent/ui';
 
+import { subscribeToHostTransport } from './host-transport';
 import type { TimelineEntry } from './mock-data';
 
 interface LiveTimelineProps {
@@ -53,57 +54,44 @@ export function LiveTimeline({
       return;
     }
 
-    const url = new URL(transport.websocketUrl);
-    url.searchParams.set('accessToken', transport.accessToken);
-
-    const socket = new WebSocket(url);
-
-    socket.addEventListener('open', () => {
-      socket.send(
-        JSON.stringify({
-          action: 'subscribe',
-          threadId,
-        }),
-      );
-    });
-
-    socket.addEventListener('message', (message) => {
-      const payload = JSON.parse(message.data as string) as
-        | {
-            type: 'ready' | 'subscribed';
-          }
-        | {
-            type: 'timeline.event';
-            threadId: string;
-            entry: {
-              sequence: number;
-              name: string;
-              createdAt: string;
-              payload: Record<string, unknown>;
+    return subscribeToHostTransport({
+      websocketUrl: transport.websocketUrl,
+      accessToken: transport.accessToken,
+      threadId,
+      listener: (payload) => {
+        const event = payload as
+          | {
+              type: 'ready' | 'subscribed';
+            }
+          | {
+              type: 'timeline.event';
+              threadId: string;
+              entry: {
+                sequence: number;
+                name: string;
+                createdAt: string;
+                payload: Record<string, unknown>;
+              };
             };
+
+        if (event.type !== 'timeline.event' || event.threadId !== threadId) {
+          return;
+        }
+
+        setItems((current) => {
+          const nextEntry: TimelineEntry = {
+            id: `${threadId}:${event.entry.sequence}`,
+            threadId,
+            title: event.entry.name,
+            status: event.entry.name,
+            summary: summarizePayload(event.entry.payload),
+            meta: event.entry.createdAt,
           };
 
-      if (payload.type !== 'timeline.event' || payload.threadId !== threadId) {
-        return;
-      }
-
-      setItems((current) => {
-        const nextEntry: TimelineEntry = {
-          id: `${threadId}:${payload.entry.sequence}`,
-          threadId,
-          title: payload.entry.name,
-          status: payload.entry.name,
-          summary: summarizePayload(payload.entry.payload),
-          meta: payload.entry.createdAt,
-        };
-
-        return [...current, nextEntry].slice(-20);
-      });
+          return [...current, nextEntry].slice(-20);
+        });
+      },
     });
-
-    return () => {
-      socket.close();
-    };
   }, [
     threadId,
     transport.accessToken,

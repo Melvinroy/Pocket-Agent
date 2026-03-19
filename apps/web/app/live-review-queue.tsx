@@ -11,6 +11,7 @@ import {
   StatusPill,
 } from '@pocket-agent/ui';
 
+import { subscribeToHostTransport } from './host-transport';
 import type { TransportConfig } from './live-data';
 import { getWorkspace, type ReviewQueueItem } from './mock-data';
 
@@ -50,37 +51,25 @@ export function LiveReviewQueue({
       return;
     }
 
-    const url = new URL(transport.websocketUrl);
-    url.searchParams.set('accessToken', transport.accessToken);
+    return subscribeToHostTransport({
+      websocketUrl: transport.websocketUrl,
+      accessToken: transport.accessToken,
+      reviewQueue: true,
+      listener: (payload) => {
+        const event = payload as
+          | { type: 'ready' | 'reviews.subscribed' }
+          | {
+              type: 'reviews.snapshot';
+              items: ReviewQueueItem[];
+            };
 
-    const socket = new WebSocket(url);
+        if (event.type !== 'reviews.snapshot') {
+          return;
+        }
 
-    socket.addEventListener('open', () => {
-      socket.send(
-        JSON.stringify({
-          action: 'subscribe-reviews',
-        }),
-      );
+        setItems(event.items);
+      },
     });
-
-    socket.addEventListener('message', (message) => {
-      const payload = JSON.parse(message.data as string) as
-        | { type: 'ready' | 'reviews.subscribed' }
-        | {
-            type: 'reviews.snapshot';
-            items: ReviewQueueItem[];
-          };
-
-      if (payload.type !== 'reviews.snapshot') {
-        return;
-      }
-
-      setItems(payload.items);
-    });
-
-    return () => {
-      socket.close();
-    };
   }, [transport.accessToken, transport.enabled, transport.websocketUrl]);
 
   const workspaceOptions = Array.from(

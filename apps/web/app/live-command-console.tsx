@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { StatusPill } from '@pocket-agent/ui';
 
+import { subscribeToHostTransport } from './host-transport';
 import type { CommandLogView, TransportConfig } from './live-data';
 
 interface LiveCommandConsoleProps {
@@ -67,56 +68,43 @@ export function LiveCommandConsole({
       return;
     }
 
-    const url = new URL(transport.websocketUrl);
-    url.searchParams.set('accessToken', transport.accessToken);
-
-    const socket = new WebSocket(url);
-
-    socket.addEventListener('open', () => {
-      socket.send(
-        JSON.stringify({
-          action: 'subscribe',
-          threadId,
-        }),
-      );
-    });
-
-    socket.addEventListener('message', (message) => {
-      const payload = JSON.parse(message.data as string) as
-        | {
-            type: 'ready' | 'subscribed';
-          }
-        | {
-            type: 'timeline.event';
-            threadId: string;
-            entry: {
-              sequence: number;
-              name: string;
-              createdAt: string;
-              payload: Record<string, unknown>;
+    return subscribeToHostTransport({
+      websocketUrl: transport.websocketUrl,
+      accessToken: transport.accessToken,
+      threadId,
+      listener: (payload) => {
+        const event = payload as
+          | {
+              type: 'ready' | 'subscribed';
+            }
+          | {
+              type: 'timeline.event';
+              threadId: string;
+              entry: {
+                sequence: number;
+                name: string;
+                createdAt: string;
+                payload: Record<string, unknown>;
+              };
             };
-          };
 
-      if (
-        payload.type !== 'timeline.event' ||
-        payload.threadId !== threadId ||
-        payload.entry.name !== 'turn.output'
-      ) {
-        return;
-      }
+        if (
+          event.type !== 'timeline.event' ||
+          event.threadId !== threadId ||
+          event.entry.name !== 'turn.output'
+        ) {
+          return;
+        }
 
-      const nextLog = mapCommandLog(threadId, payload.entry);
+        const nextLog = mapCommandLog(threadId, event.entry);
 
-      if (!nextLog) {
-        return;
-      }
+        if (!nextLog) {
+          return;
+        }
 
-      setLogs((current) => [...current, nextLog].slice(-10));
+        setLogs((current) => [...current, nextLog].slice(-10));
+      },
     });
-
-    return () => {
-      socket.close();
-    };
   }, [
     threadId,
     transport.accessToken,
