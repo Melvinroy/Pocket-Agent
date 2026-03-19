@@ -21,7 +21,7 @@ describe('mobile shell routes', () => {
     expect(screen.getAllByText('Pocket Agent').length).toBeGreaterThan(1);
     expect(screen.getByText('Bridge Lab')).toBeTruthy();
     expect(screen.getByText('Open active thread')).toBeTruthy();
-    expect(screen.getByText('Start pairing')).toBeTruthy();
+    expect(screen.getByText('Start controller pairing')).toBeTruthy();
   });
 
   it('renders workspace detail state', () => {

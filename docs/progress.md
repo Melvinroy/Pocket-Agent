@@ -180,3 +180,11 @@
 - Improved Connect Panel conflict handling so active-controller lease failures surface actionable recovery guidance.
 - Added regression coverage for the layout and pairing conflict bugs discovered during the dogfood pass.
 - Promoted the repository version to `1.14.0` and added dogfood milestone documentation.
+
+### Viewer pairing fallback
+
+- Created the `codex/feat/viewer-pairing-fallback` slice to unblock read-only access when another device already holds the controller lease.
+- Added controller and viewer pairing mode selection to the web Connect Panel before a session is established.
+- Added a one-click fallback action that retries the same host pairing request as a viewer after a controller-only conflict.
+- Updated browser tests for the new pairing labels and viewer fallback flow.
+- Promoted the repository version to `1.15.0` and added viewer pairing milestone documentation.

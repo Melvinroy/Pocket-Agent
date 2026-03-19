@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.14.0` fixes the first real dogfood regressions in the live web shell. The shared hero layout now renders correctly on the dashboard, and pairing conflicts surface actionable controller-lease guidance instead of a raw host error.
+Pocket Agent `1.15.0` adds a viewer-first pairing fallback in the web shell. When another device already holds the controller lease, operators can switch the same host session into read-only mode instead of getting stuck on a failed controller-only pairing flow.
 
 ## Principles
 

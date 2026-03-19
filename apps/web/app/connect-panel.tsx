@@ -11,6 +11,8 @@ interface PairingPayload {
   };
 }
 
+type PairingRole = 'controller' | 'viewer';
+
 function formatPairingError(error: string | null | undefined) {
   if (!error) {
     return 'Unable to complete pairing';
@@ -26,13 +28,15 @@ function formatPairingError(error: string | null | undefined) {
 export function ConnectPanel({ connected }: { connected: boolean }) {
   const [hostUrl, setHostUrl] = useState('http://127.0.0.1:43110');
   const [displayName, setDisplayName] = useState('Pocket Agent Web');
+  const [role, setRole] = useState<PairingRole>('controller');
   const [pairing, setPairing] = useState<PairingPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const startPairing = () => {
+  const startPairing = (nextRole: PairingRole = role) => {
     startTransition(async () => {
       setError(null);
+      setRole(nextRole);
       const response = await fetch('/api/host/pairing/start', {
         method: 'POST',
         headers: {
@@ -40,7 +44,7 @@ export function ConnectPanel({ connected }: { connected: boolean }) {
         },
         body: JSON.stringify({
           hostUrl,
-          role: 'controller',
+          role: nextRole,
         }),
       });
       const payload = (await response.json()) as
@@ -145,10 +149,52 @@ export function ConnectPanel({ connected }: { connected: boolean }) {
         />
       </label>
 
+      {!connected ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ fontWeight: 700 }}>Pairing mode</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setPairing(null);
+                setError(null);
+                setRole('controller');
+              }}
+              disabled={isPending}
+              style={toggleStyle(role === 'controller')}
+            >
+              Controller
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPairing(null);
+                setError(null);
+                setRole('viewer');
+              }}
+              disabled={isPending}
+              style={toggleStyle(role === 'viewer')}
+            >
+              Viewer
+            </button>
+          </div>
+          <div style={{ fontSize: 13, color: '#6a746f' }}>
+            {role === 'controller'
+              ? 'Controller mode can steer turns, resolve approvals, and run host-side presets.'
+              : 'Viewer mode keeps the live shell read-only while another device holds the active controller lease.'}
+          </div>
+        </div>
+      ) : null}
+
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <StatusPill tone={connected ? 'success' : 'warning'}>
           {connected ? 'Connected' : 'Not paired'}
         </StatusPill>
+        {!connected ? (
+          <StatusPill tone={role === 'controller' ? 'warning' : 'neutral'}>
+            {role}
+          </StatusPill>
+        ) : null}
         {pairing ? (
           <StatusPill tone="neutral">
             Code {pairing.pairingSession.confirmationCode}
@@ -182,13 +228,27 @@ export function ConnectPanel({ connected }: { connected: boolean }) {
         ) : (
           <button
             type="button"
-            onClick={startPairing}
+            onClick={() => startPairing()}
             disabled={isPending}
             style={buttonStyle(true)}
           >
-            Start pairing
+            Start {role} pairing
           </button>
         )}
+        {!connected && role === 'controller' ? (
+          <button
+            type="button"
+            onClick={() => {
+              setPairing(null);
+              setError(null);
+              void startPairing('viewer');
+            }}
+            disabled={isPending}
+            style={buttonStyle(false)}
+          >
+            Pair as viewer instead
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -202,6 +262,20 @@ function buttonStyle(accent: boolean) {
     padding: '0 18px',
     background: accent ? '#142b28' : 'rgba(42, 47, 43, 0.08)',
     color: accent ? '#f6f2e8' : '#2f3a31',
+    fontWeight: 700,
+    font: 'inherit',
+    cursor: 'pointer',
+  } satisfies React.CSSProperties;
+}
+
+function toggleStyle(active: boolean) {
+  return {
+    minHeight: 40,
+    borderRadius: 999,
+    border: active ? 'none' : '1px solid rgba(42, 47, 43, 0.16)',
+    padding: '0 14px',
+    background: active ? '#142b28' : '#fffdf8',
+    color: active ? '#f6f2e8' : '#2f3a31',
     fontWeight: 700,
     font: 'inherit',
     cursor: 'pointer',

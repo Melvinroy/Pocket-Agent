@@ -54,12 +54,22 @@ describe('ConnectPanel', () => {
 
     render(<ConnectPanel connected={false} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start pairing' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Start controller pairing' }),
+    );
 
     await waitFor(() => {
       expect(
         screen.getByRole('button', { name: 'Confirm pairing' }),
       ).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole('button', { name: 'Confirm pairing' })
+          .hasAttribute('disabled'),
+      ).toBe(false);
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirm pairing' }));
@@ -75,5 +85,50 @@ describe('ConnectPanel', () => {
         ),
       ).toBeTruthy();
     });
+  });
+
+  it('starts viewer pairing when the fallback action is used', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          pairingSession: {
+            id: 'pairing-2',
+            confirmationCode: '654-321',
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      ),
+    );
+
+    render(<ConnectPanel connected={false} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Pair as viewer instead' }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/host/pairing/start', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          hostUrl: 'http://127.0.0.1:43110',
+          role: 'viewer',
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Confirm pairing' }),
+      ).toBeTruthy();
+    });
+    expect(screen.getByText('Code 654-321')).toBeTruthy();
   });
 });

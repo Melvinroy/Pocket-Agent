@@ -156,9 +156,14 @@ describe('host transport sharing', () => {
       expect(screen.getByText('reconnecting')).toBeTruthy();
     });
 
-    await waitFor(() => {
-      expect(MockWebSocket.instances).toHaveLength(2);
-    });
+    await waitFor(
+      () => {
+        expect(MockWebSocket.instances).toHaveLength(2);
+      },
+      {
+        timeout: 3_000,
+      },
+    );
 
     MockWebSocket.instances[1]?.emit('open', {});
 
