@@ -1,10 +1,10 @@
-# Codex Remote
+# Pocket Agent
 
-Codex Remote is an open-source, phone-first remote coding environment for a local Codex host. The host machine remains the source of truth for repositories, credentials, execution, and policy while phone and web clients attach through a stable remote protocol.
+Pocket Agent is an open-source, phone-first remote coding environment for a local Codex host. The host machine remains the source of truth for repositories, credentials, execution, and policy while phone and web clients attach through a stable remote protocol.
 
 ## Status
 
-This repository is in active bootstrap. Version `0.2.0` establishes the monorepo, repo standards, CI, initial architecture records, and a host-only Codex bridge alpha over stdio for typed request, response, and event handling.
+This repository is in active bootstrap. Version `0.3.0` adds SQLite-backed persistence, replay-oriented session storage, approvals, devices, controller lease tracking, and audit logging on top of the bridge alpha.
 
 ## Principles
 

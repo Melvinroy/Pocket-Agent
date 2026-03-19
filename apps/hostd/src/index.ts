@@ -16,7 +16,7 @@ export async function run(argv = process.argv.slice(2)): Promise<string> {
     const capabilities = await createBridgeCapabilities(bridge);
     const payload = {
       status: 'ok',
-      version: '0.2.0',
+      version: '0.3.0',
       host: config,
       policy: DEFAULT_SECURITY_POLICY,
       bridge: capabilities,
