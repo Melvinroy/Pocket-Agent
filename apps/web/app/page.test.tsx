@@ -1,9 +1,15 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import HomePage from './page.js';
 import { ThreadScreen, WorkspaceScreen } from './screens.js';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: vi.fn(),
+  }),
+}));
 
 describe('mobile shell routes', () => {
   it('renders the home dashboard with workspace links', async () => {

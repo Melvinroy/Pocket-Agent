@@ -14,6 +14,7 @@ import {
 
 import type { ShellStateView, TransportConfig } from './live-data';
 import { LiveTimeline } from './live-timeline';
+import { ThreadActions } from './thread-actions';
 import {
   type ApprovalSummary,
   type FileChangeSummary,
@@ -480,24 +481,10 @@ export function ThreadScreen({
         title="Controller actions"
         subtitle="Steer, interrupt, and approval handling stay controller-gated on the host."
       >
-        <ActionStrip
-          items={[
-            {
-              label: 'Steer next turn',
-              hint: 'Queue a new plan update for the active thread',
-              tone: 'accent',
-            },
-            {
-              label: 'Interrupt safely',
-              hint: 'Stop host execution and preserve replayable state',
-              tone: 'muted',
-            },
-            {
-              label: 'Review approval queue',
-              hint: approvals[0]?.title ?? 'No approvals pending',
-              tone: 'muted',
-            },
-          ]}
+        <ThreadActions
+          threadId={threadId}
+          approvals={approvals}
+          enabled={transport?.enabled === true && shell.role === 'controller'}
         />
       </SectionCard>
 

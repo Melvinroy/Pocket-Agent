@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-19
+
+### Added
+
+- Next.js host proxy routes for thread steer, thread interrupt, and approval resolution.
+- Controller action panel in the web thread screen for steer, interrupt, and approval decisions.
+- Browser coverage for the controller action panel and route refresh behavior.
+
+### Fixed
+
+- Bridge stdio response handling when event and response envelopes arrive in the same chunk.
+
 ## [1.2.0] - 2026-03-19
 
 ### Added

@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.2.0` adds an in-app web pairing flow. The web shell can now start and confirm pairing against a host gateway, persist the host session in secure cookies, and use live transport without requiring manual environment-variable token wiring.
+Pocket Agent `1.3.0` adds controller actions to the web shell. A paired controller can now steer a thread, interrupt execution, and resolve approvals from the thread screen through host-routed Next.js proxy endpoints without exposing raw host credentials to the client.
 
 ## Principles
 
@@ -40,7 +40,7 @@ corepack pnpm --filter @pocket-agent/hostd dev -- --serve
 ```
 
 Set `POCKET_AGENT_HOST_URL` and `POCKET_AGENT_ACCESS_TOKEN` for the web app to use the live host transport instead of seeded shell data.
-The web shell can also start pairing directly from the home screen and persist the host session in cookies.
+The web shell can also start pairing directly from the home screen, persist the host session in cookies, and send controller actions from the thread screen once the device holds the active lease.
 
 ## Compatibility
 

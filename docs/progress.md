@@ -85,3 +85,10 @@
 - Added Next.js pairing proxy routes, cookie-backed host session persistence, and a connect/disconnect panel on the home screen.
 - Kept seeded fallback behavior intact while letting the web shell self-bootstrap a live host session without manual env var setup.
 - Promoted the repository version to `1.2.0` and added web pairing milestone documentation.
+
+### Web controller actions
+
+- Created the `codex/feat/web-controller-actions` slice for real host-routed thread actions from the web shell.
+- Added Next.js proxy routes and a thread action panel for steer, interrupt, and approval resolution using the existing host controller lease.
+- Fixed a bridge chunk-processing bug that could stall stdio handshake tests when events and responses shared a read buffer.
+- Promoted the repository version to `1.3.0` and added controller action milestone documentation.

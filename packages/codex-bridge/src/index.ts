@@ -211,7 +211,7 @@ export class StdioCodexBridge implements CodexBridge {
 
       if (envelope.kind === 'event') {
         this.emitter.emit('event', envelope);
-        return;
+        continue;
       }
 
       if (envelope.kind === 'response') {
