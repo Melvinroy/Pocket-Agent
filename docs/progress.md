@@ -78,3 +78,10 @@
 - Added websocket transport, workspace and thread summary endpoints, and a host `--serve` path for immediate local bring-up.
 - Replaced the web shell's seeded-only route behavior with live host fetches and websocket timeline updates when host credentials are configured.
 - Promoted the repository version to `1.1.0` and added live transport milestone documentation.
+
+### Web pairing
+
+- Created the `codex/feat/web-pairing` slice for in-app host onboarding from the web shell.
+- Added Next.js pairing proxy routes, cookie-backed host session persistence, and a connect/disconnect panel on the home screen.
+- Kept seeded fallback behavior intact while letting the web shell self-bootstrap a live host session without manual env var setup.
+- Promoted the repository version to `1.2.0` and added web pairing milestone documentation.

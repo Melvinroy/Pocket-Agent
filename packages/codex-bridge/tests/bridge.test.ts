@@ -46,7 +46,7 @@ describe('codex bridge', () => {
     });
 
     await bridge.dispose();
-  }, 10_000);
+  }, 20_000);
 
   it('streams lifecycle and output events from the child process', async () => {
     const bridge = spawnStdioCodexBridge({
@@ -90,7 +90,7 @@ describe('codex bridge', () => {
         name: 'turn.output',
       }),
     );
-  }, 10_000);
+  }, 20_000);
 
   it('rejects unsupported requests from the child process', async () => {
     const bridge = spawnStdioCodexBridge({

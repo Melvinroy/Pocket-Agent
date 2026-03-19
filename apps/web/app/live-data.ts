@@ -18,6 +18,7 @@ import {
   type WorkspaceSummary,
   workspaces,
 } from './mock-data';
+import { readHostSession } from './host-session';
 
 export interface ShellStateView {
   deviceName: string;
@@ -91,15 +92,6 @@ interface WorktreeListPayload {
   }>;
 }
 
-function hostBaseUrl(): string | null {
-  const baseUrl = process.env.POCKET_AGENT_HOST_URL?.trim();
-  return baseUrl ? baseUrl.replace(/\/$/, '') : null;
-}
-
-function accessToken(): string | null {
-  return process.env.POCKET_AGENT_ACCESS_TOKEN?.trim() || null;
-}
-
 function websocketUrl(baseUrl: string): string {
   const url = new URL(baseUrl);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -109,8 +101,7 @@ function websocketUrl(baseUrl: string): string {
 }
 
 async function fetchHostJson<T>(path: string): Promise<T | null> {
-  const baseUrl = hostBaseUrl();
-  const token = accessToken();
+  const { hostUrl: baseUrl, accessToken: token } = await readHostSession();
 
   if (!baseUrl || !token) {
     return null;
@@ -263,9 +254,8 @@ function mapWorktree(
   };
 }
 
-function buildTransportConfig(): TransportConfig {
-  const baseUrl = hostBaseUrl();
-  const token = accessToken();
+async function buildTransportConfig(): Promise<TransportConfig> {
+  const { hostUrl: baseUrl, accessToken: token } = await readHostSession();
 
   if (!baseUrl || !token) {
     return {
@@ -293,7 +283,7 @@ export async function getHomeView() {
       shell: shellState,
       workspaces,
       featuredThread: threads[0] ?? null,
-      transport: buildTransportConfig(),
+      transport: await buildTransportConfig(),
     };
   }
 
@@ -311,7 +301,7 @@ export async function getHomeView() {
     featuredThread: threadPayload?.threads[0]
       ? mapThread(threadPayload.threads[0])
       : null,
-    transport: buildTransportConfig(),
+    transport: await buildTransportConfig(),
   };
 }
 
@@ -328,6 +318,7 @@ export async function getWorkspaceView(workspaceId: string) {
       threads: getWorkspaceThreads(workspaceId),
       files: getWorkspaceFiles(workspaceId),
       worktrees: getWorkspaceWorktrees(workspaceId),
+      transport: await buildTransportConfig(),
     };
   }
 
@@ -359,6 +350,7 @@ export async function getWorkspaceView(workspaceId: string) {
       worktreePayload?.worktrees.map((worktree) =>
         mapWorktree(workspaceId, worktree),
       ) ?? getWorkspaceWorktrees(workspaceId),
+    transport: await buildTransportConfig(),
   };
 }
 
@@ -383,7 +375,7 @@ export async function getThreadView(workspaceId: string, threadId: string) {
       approvals: getThreadApprovals(threadId),
       files: getThreadFiles(threadId),
       presets: getThreadPresets(threadId),
-      transport: buildTransportConfig(),
+      transport: await buildTransportConfig(),
     };
   }
 
@@ -414,6 +406,6 @@ export async function getThreadView(workspaceId: string, threadId: string) {
         mapWorkspaceEntry(workspaceId, threadId, entry),
       ) ?? getThreadFiles(threadId),
     presets,
-    transport: buildTransportConfig(),
+    transport: await buildTransportConfig(),
   };
 }

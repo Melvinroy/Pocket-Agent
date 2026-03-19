@@ -92,10 +92,12 @@ export function HomeScreen({
   shell = shellState,
   workspaceItems = workspaces,
   featuredThread = threads[0] ?? null,
+  connectPanel,
 }: {
   shell?: ShellStateView;
   workspaceItems?: WorkspaceSummary[];
   featuredThread?: ThreadSummary | null;
+  connectPanel?: React.ReactNode;
 }) {
   return (
     <PhoneShell
@@ -127,6 +129,9 @@ export function HomeScreen({
             },
           ]}
         />
+        {connectPanel ? (
+          <div style={{ marginTop: 16 }}>{connectPanel}</div>
+        ) : null}
       </SectionCard>
 
       <SectionCard

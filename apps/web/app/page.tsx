@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { ConnectPanel } from './connect-panel';
 import { getHomeView } from './live-data';
 import { HomeScreen } from './screens';
 
@@ -11,6 +12,7 @@ export default async function HomePage() {
       shell={view.shell}
       workspaceItems={view.workspaces}
       featuredThread={view.featuredThread}
+      connectPanel={<ConnectPanel connected={view.transport.enabled} />}
     />
   );
 }

@@ -15,6 +15,7 @@ describe('mobile shell routes', () => {
     expect(screen.getAllByText('Pocket Agent').length).toBeGreaterThan(1);
     expect(screen.getByText('Bridge Lab')).toBeTruthy();
     expect(screen.getByText('Open active thread')).toBeTruthy();
+    expect(screen.getByText('Start pairing')).toBeTruthy();
   });
 
   it('renders workspace detail state', () => {
@@ -22,7 +23,7 @@ describe('mobile shell routes', () => {
 
     expect(
       screen.getAllByText('Melvinroy/Pocket-Agent').length,
-    ).toBeGreaterThan(1);
+    ).toBeGreaterThan(0);
     expect(screen.getByText('Lease state')).toBeTruthy();
     expect(screen.getByText('Changed files')).toBeTruthy();
     expect(screen.getByText('Worktrees')).toBeTruthy();

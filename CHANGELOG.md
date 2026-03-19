@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-19
+
+### Added
+
+- In-app web pairing routes that proxy pairing start and confirm through the Next.js app.
+- Cookie-backed host session persistence for the web shell.
+- Home-screen connect panel for host URL entry, pairing confirmation, and disconnect.
+
 ## [1.1.0] - 2026-03-19
 
 ### Added

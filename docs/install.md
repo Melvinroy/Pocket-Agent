@@ -30,3 +30,10 @@ corepack pnpm build
 2. Copy the printed `baseUrl` and `accessToken`.
 3. Run the web shell with `POCKET_AGENT_HOST_URL=<baseUrl>` and `POCKET_AGENT_ACCESS_TOKEN=<accessToken>`.
 4. Open the thread route and confirm that new steer or approval actions appear without a page refresh.
+
+## Web pairing flow
+
+1. Open the web shell home page.
+2. Enter the host URL in the connect panel and start pairing.
+3. Confirm the displayed code to persist the host session in secure cookies.
+4. Refresh-free navigation should now use live host discovery and websocket updates.
