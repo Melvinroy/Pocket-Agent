@@ -376,6 +376,25 @@ async function buildTransportConfig(): Promise<TransportConfig> {
   };
 }
 
+async function getLiveThreadSummaries(workspacesPayload: WorkspacePayload[]) {
+  const threadPayloads = await Promise.all(
+    workspacesPayload.map(async (workspace) => ({
+      workspaceId: workspace.id,
+      payload: await fetchHostJson<{ threads: ThreadPayload[] }>(
+        `/api/workspaces/${workspace.id}/threads`,
+      ),
+    })),
+  );
+
+  return threadPayloads.flatMap(
+    ({ workspaceId, payload }) =>
+      payload?.threads.map((thread) => ({
+        workspaceId,
+        thread,
+      })) ?? [],
+  );
+}
+
 export async function getHomeView() {
   const session = await fetchHostJson<SessionPayload>('/api/session');
   const workspacePayload = await fetchHostJson<{
@@ -393,21 +412,7 @@ export async function getHomeView() {
   }
 
   const mappedWorkspaces = workspacePayload.workspaces.map(mapWorkspace);
-  const threadPayloads = await Promise.all(
-    workspacePayload.workspaces.map(async (workspace) => ({
-      workspaceId: workspace.id,
-      payload: await fetchHostJson<{ threads: ThreadPayload[] }>(
-        `/api/workspaces/${workspace.id}/threads`,
-      ),
-    })),
-  );
-  const allThreads = threadPayloads.flatMap(
-    ({ workspaceId, payload }) =>
-      payload?.threads.map((thread) => ({
-        workspaceId,
-        thread,
-      })) ?? [],
-  );
+  const allThreads = await getLiveThreadSummaries(workspacePayload.workspaces);
   const reviewQueue = allThreads
     .map(({ workspaceId, thread }) => mapReviewQueueItem(workspaceId, thread))
     .filter((item): item is ReviewQueueItem => item !== null);
@@ -418,6 +423,32 @@ export async function getHomeView() {
     featuredThread: allThreads[0]?.thread
       ? mapThread(allThreads[0].thread)
       : null,
+    reviewQueue,
+    transport: await buildTransportConfig(),
+  };
+}
+
+export async function getReviewQueueView() {
+  const session = await fetchHostJson<SessionPayload>('/api/session');
+  const workspacePayload = await fetchHostJson<{
+    workspaces: WorkspacePayload[];
+  }>('/api/workspaces');
+
+  if (!workspacePayload) {
+    return {
+      shell: shellState,
+      reviewQueue: getReviewQueueItems(),
+      transport: await buildTransportConfig(),
+    };
+  }
+
+  const allThreads = await getLiveThreadSummaries(workspacePayload.workspaces);
+  const reviewQueue = allThreads
+    .map(({ workspaceId, thread }) => mapReviewQueueItem(workspaceId, thread))
+    .filter((item): item is ReviewQueueItem => item !== null);
+
+  return {
+    shell: mapShellState(session),
     reviewQueue,
     transport: await buildTransportConfig(),
   };

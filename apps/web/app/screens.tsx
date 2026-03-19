@@ -238,7 +238,11 @@ export function HomeScreen({
       <SectionCard
         title="Review queue"
         subtitle="Track review-ready threads and approval gates across workspaces without hunting through each thread shell."
-        action={<StatusPill tone="neutral">host projected</StatusPill>}
+        action={
+          <Link href="/reviews" style={{ textDecoration: 'none' }}>
+            <StatusPill tone="neutral">open review history</StatusPill>
+          </Link>
+        }
       >
         {reviewQueueItems.length > 0 ? (
           <DetailList
@@ -267,6 +271,99 @@ export function HomeScreen({
           />
         ) : (
           <StatusPill tone="neutral">No queued reviews</StatusPill>
+        )}
+      </SectionCard>
+    </PhoneShell>
+  );
+}
+
+export function ReviewQueueScreen({
+  shell = shellState,
+  reviewQueueItems = getReviewQueueItems(),
+}: {
+  shell?: ShellStateView;
+  reviewQueueItems?: ReviewQueueItem[];
+}) {
+  const pendingCount = reviewQueueItems.filter(
+    (item) => item.status === 'pending',
+  ).length;
+  const activeCount = reviewQueueItems.filter(
+    (item) => item.status === 'active',
+  ).length;
+  const recentCount = reviewQueueItems.filter(
+    (item) => item.status === 'recent',
+  ).length;
+
+  return (
+    <PhoneShell
+      eyebrow="Pocket Agent"
+      title="Review history"
+      description="Review work stays visible across workspaces, so the active controller can jump directly into blocked approvals, active review passes, and recent follow-ups."
+      meta={<ShellMeta shell={shell} />}
+    >
+      <SectionCard
+        title="Queue posture"
+        subtitle="The dashboard keeps review work separated by state without exposing raw host internals."
+      >
+        <StatGrid
+          items={[
+            {
+              label: 'Pending',
+              value: String(pendingCount),
+              hint: 'approval gates',
+            },
+            {
+              label: 'Active',
+              value: String(activeCount),
+              hint: 'reviewing now',
+            },
+            {
+              label: 'Recent',
+              value: String(recentCount),
+              hint: 'ready for follow-up',
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Review items"
+        subtitle="Open the right thread directly from the review queue."
+      >
+        {reviewQueueItems.length > 0 ? (
+          <DetailList
+            items={reviewQueueItems.map((reviewItem) => {
+              const workspace = getWorkspace(reviewItem.workspaceId);
+
+              return {
+                id: reviewItem.id,
+                title: (
+                  <Link
+                    href={`/workspaces/${reviewItem.workspaceId}/threads/${reviewItem.threadId}`}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    {reviewItem.title}
+                  </Link>
+                ),
+                body: (
+                  <>
+                    <div>{reviewItem.summary}</div>
+                    <div>
+                      {workspace?.name ?? reviewItem.workspaceId} |{' '}
+                      {reviewItem.updatedAt}
+                    </div>
+                  </>
+                ),
+                badge: (
+                  <StatusPill tone={reviewTone(reviewItem.status)}>
+                    {reviewItem.status}
+                  </StatusPill>
+                ),
+              };
+            })}
+          />
+        ) : (
+          <StatusPill tone="neutral">No review history yet</StatusPill>
         )}
       </SectionCard>
     </PhoneShell>

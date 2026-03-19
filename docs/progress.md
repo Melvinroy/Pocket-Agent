@@ -127,3 +127,10 @@
 - Added seeded and live review queue projections so review-ready threads and approval gates surface on the home screen.
 - Added browser coverage for review queue rendering and thread deep links from the home route.
 - Promoted the repository version to `1.8.0` and added review queue milestone documentation.
+
+### Web review history
+
+- Created the `codex/feat/web-review-history` slice for a dedicated review queue and history surface.
+- Added a `/reviews` route with queue posture stats and deep links back into the relevant thread.
+- Reused the live host review projection so the review history route stays aligned with the dashboard queue.
+- Promoted the repository version to `1.9.0` and added review history milestone documentation.
