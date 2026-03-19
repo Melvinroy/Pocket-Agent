@@ -280,10 +280,20 @@ export function HomeScreen({
 export function ReviewQueueScreen({
   shell = shellState,
   reviewQueueItems = getReviewQueueItems(),
+  activeStateFilter = 'all',
+  activeWorkspaceFilter = 'all',
 }: {
   shell?: ShellStateView;
   reviewQueueItems?: ReviewQueueItem[];
+  activeStateFilter?: 'all' | ReviewQueueItem['status'];
+  activeWorkspaceFilter?: string;
 }) {
+  const workspaceOptions = Array.from(
+    new Set(reviewQueueItems.map((item) => item.workspaceId)),
+  ).map((workspaceId) => ({
+    workspaceId,
+    workspaceName: getWorkspace(workspaceId)?.name ?? workspaceId,
+  }));
   const pendingCount = reviewQueueItems.filter(
     (item) => item.status === 'pending',
   ).length;
@@ -293,6 +303,15 @@ export function ReviewQueueScreen({
   const recentCount = reviewQueueItems.filter(
     (item) => item.status === 'recent',
   ).length;
+  const filteredItems = reviewQueueItems.filter((item) => {
+    const matchesState =
+      activeStateFilter === 'all' || item.status === activeStateFilter;
+    const matchesWorkspace =
+      activeWorkspaceFilter === 'all' ||
+      item.workspaceId === activeWorkspaceFilter;
+
+    return matchesState && matchesWorkspace;
+  });
 
   return (
     <PhoneShell
@@ -330,9 +349,82 @@ export function ReviewQueueScreen({
         title="Review items"
         subtitle="Open the right thread directly from the review queue."
       >
-        {reviewQueueItems.length > 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            marginBottom: 12,
+          }}
+        >
+          <Link href="/reviews" style={{ textDecoration: 'none' }}>
+            <StatusPill
+              tone={activeStateFilter === 'all' ? 'warning' : 'neutral'}
+            >
+              all states
+            </StatusPill>
+          </Link>
+          <Link
+            href="/reviews?state=pending"
+            style={{ textDecoration: 'none' }}
+          >
+            <StatusPill
+              tone={activeStateFilter === 'pending' ? 'warning' : 'neutral'}
+            >
+              pending {pendingCount}
+            </StatusPill>
+          </Link>
+          <Link href="/reviews?state=active" style={{ textDecoration: 'none' }}>
+            <StatusPill
+              tone={activeStateFilter === 'active' ? 'success' : 'neutral'}
+            >
+              active {activeCount}
+            </StatusPill>
+          </Link>
+          <Link href="/reviews?state=recent" style={{ textDecoration: 'none' }}>
+            <StatusPill
+              tone={activeStateFilter === 'recent' ? 'success' : 'neutral'}
+            >
+              recent {recentCount}
+            </StatusPill>
+          </Link>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            marginBottom: 12,
+          }}
+        >
+          <Link href="/reviews" style={{ textDecoration: 'none' }}>
+            <StatusPill
+              tone={activeWorkspaceFilter === 'all' ? 'success' : 'neutral'}
+            >
+              all workspaces
+            </StatusPill>
+          </Link>
+          {workspaceOptions.map((workspace) => (
+            <Link
+              key={workspace.workspaceId}
+              href={`/reviews?workspace=${encodeURIComponent(workspace.workspaceId)}`}
+              style={{ textDecoration: 'none' }}
+            >
+              <StatusPill
+                tone={
+                  activeWorkspaceFilter === workspace.workspaceId
+                    ? 'success'
+                    : 'neutral'
+                }
+              >
+                {workspace.workspaceName}
+              </StatusPill>
+            </Link>
+          ))}
+        </div>
+        {filteredItems.length > 0 ? (
           <DetailList
-            items={reviewQueueItems.map((reviewItem) => {
+            items={filteredItems.map((reviewItem) => {
               const workspace = getWorkspace(reviewItem.workspaceId);
 
               return {
@@ -363,7 +455,9 @@ export function ReviewQueueScreen({
             })}
           />
         ) : (
-          <StatusPill tone="neutral">No review history yet</StatusPill>
+          <StatusPill tone="neutral">
+            No review items match this filter
+          </StatusPill>
         )}
       </SectionCard>
     </PhoneShell>

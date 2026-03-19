@@ -134,3 +134,10 @@
 - Added a `/reviews` route with queue posture stats and deep links back into the relevant thread.
 - Reused the live host review projection so the review history route stays aligned with the dashboard queue.
 - Promoted the repository version to `1.9.0` and added review history milestone documentation.
+
+### Web review filters
+
+- Created the `codex/feat/web-review-filters` slice for narrowing review work on the new history route.
+- Added state and workspace filters on `/reviews` with host-projected query-param navigation.
+- Added browser coverage for state-filtered review history rendering.
+- Promoted the repository version to `1.10.0` and added review filter milestone documentation.
