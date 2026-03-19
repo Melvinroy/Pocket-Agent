@@ -1,6 +1,6 @@
 {
   "name": "@pocket-agent/hostd",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +15,7 @@
     "@pocket-agent/security": "workspace:*",
     "@pocket-agent/session-store": "workspace:*",
     "@pocket-agent/workspace-manager": "workspace:*",
+    "ws": "^8.18.3",
     "zod": "^3.24.2"
   }
 }

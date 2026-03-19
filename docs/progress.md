@@ -71,3 +71,10 @@
 - Renamed workspace packages from `@codex-remote/*` to `@pocket-agent/*` and aligned root metadata with the Pocket Agent identity.
 - Added a dedicated Next.js ESLint plugin configuration for the web app to remove framework warning drift from release validation.
 - Promoted the repository version to `1.0.0` and added release-candidate documentation.
+
+### Live transport
+
+- Created the `codex/feat/live-transport` slice for live host discovery and streamed thread updates.
+- Added websocket transport, workspace and thread summary endpoints, and a host `--serve` path for immediate local bring-up.
+- Replaced the web shell's seeded-only route behavior with live host fetches and websocket timeline updates when host credentials are configured.
+- Promoted the repository version to `1.1.0` and added live transport milestone documentation.

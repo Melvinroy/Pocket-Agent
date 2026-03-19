@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { getWorkspaceView } from '../../live-data';
 import { WorkspaceScreen } from '../../screens';
 
 export default async function WorkspacePage({
@@ -9,5 +10,16 @@ export default async function WorkspacePage({
 }) {
   const { workspaceId } = await params;
 
-  return <WorkspaceScreen workspaceId={workspaceId} />;
+  const view = await getWorkspaceView(workspaceId);
+
+  return (
+    <WorkspaceScreen
+      workspaceId={workspaceId}
+      shell={view.shell}
+      workspaceData={view.workspace}
+      workspaceThreadsData={view.threads}
+      workspaceFilesData={view.files}
+      workspaceWorktreesData={view.worktrees}
+    />
+  );
 }

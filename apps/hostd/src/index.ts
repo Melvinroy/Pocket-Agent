@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+import path from 'node:path';
+
 import {
   createBridgeCapabilities,
   createMockCodexBridge,
@@ -7,12 +10,83 @@ import {
   PairingService,
   redactSecrets,
 } from '@pocket-agent/security';
-import { createInMemorySessionStore } from '@pocket-agent/session-store';
+import {
+  createInMemorySessionStore,
+  type SessionStore,
+} from '@pocket-agent/session-store';
 
 import { buildHostConfig } from './lib/config.js';
 import { createHostGateway } from './lib/gateway.js';
 
 export { buildHostConfig } from './lib/config.js';
+
+async function seedDemoSessionStore(
+  sessionStore: SessionStore,
+  now: string,
+  rootPath: string,
+) {
+  await sessionStore.upsertWorkspace({
+    id: 'workspace-local',
+    rootPath,
+    displayName: 'Pocket Agent Local',
+    createdAt: now,
+  });
+  await sessionStore.upsertThread({
+    id: 'thread-local',
+    workspaceId: 'workspace-local',
+    title: 'Live transport demo',
+    status: 'active',
+    createdAt: now,
+    updatedAt: now,
+  });
+  await sessionStore.appendEvent({
+    id: randomUUID(),
+    threadId: 'thread-local',
+    sequence: 1,
+    kind: 'turn.output',
+    payload: {
+      chunk: 'Pocket Agent host gateway is ready for a live client.',
+    },
+    createdAt: now,
+  });
+  await sessionStore.saveApproval({
+    id: 'approval-local',
+    threadId: 'thread-local',
+    status: 'pending',
+    requestedAt: now,
+    resolvedAt: null,
+  });
+}
+
+async function issueDemoController(
+  sessionStore: SessionStore,
+  pairingService: PairingService,
+  now: string,
+) {
+  const pairing = pairingService.createPairingSession('controller');
+  const deviceId = 'demo-controller';
+  const token = pairingService.confirmPairing(
+    pairing.pairingSession.id,
+    pairing.pairingSession.confirmationCode,
+    deviceId,
+  );
+
+  await sessionStore.registerDevice({
+    id: deviceId,
+    displayName: 'Pocket Agent Demo Controller',
+    role: 'controller',
+    pairedAt: now,
+    revokedAt: null,
+  });
+  await sessionStore.acquireControllerLease({
+    id: 'controller',
+    deviceId,
+    acquiredAt: now,
+    expiresAt: token.expiresAt,
+  });
+
+  return token;
+}
 
 export async function run(argv = process.argv.slice(2)): Promise<string> {
   const config = buildHostConfig(process.env);
@@ -22,7 +96,7 @@ export async function run(argv = process.argv.slice(2)): Promise<string> {
     const capabilities = await createBridgeCapabilities(bridge);
     const payload = {
       status: 'ok',
-      version: '0.8.0',
+      version: '1.1.0',
       host: config,
       policy: DEFAULT_SECURITY_POLICY,
       bridge: capabilities,
@@ -47,8 +121,40 @@ export async function run(argv = process.argv.slice(2)): Promise<string> {
     return JSON.stringify({
       status: 'ok',
       port,
-      transport: 'http',
+      transport: 'websocket',
     });
+  }
+
+  if (argv.includes('--serve')) {
+    const now = new Date().toISOString();
+    const sessionStore = createInMemorySessionStore();
+    const pairingService = new PairingService();
+    await seedDemoSessionStore(sessionStore, now, path.resolve(process.cwd()));
+    const controller = await issueDemoController(
+      sessionStore,
+      pairingService,
+      now,
+    );
+    const gateway = createHostGateway({
+      config,
+      pairingService,
+      sessionStore,
+      policy: DEFAULT_SECURITY_POLICY,
+    });
+    const port = await gateway.start(config.port);
+
+    return JSON.stringify(
+      {
+        status: 'listening',
+        baseUrl: `http://${config.bindAddress}:${port}`,
+        accessToken: controller.token,
+        workspaceId: 'workspace-local',
+        threadId: 'thread-local',
+        transport: 'websocket',
+      },
+      null,
+      2,
+    );
   }
 
   return 'Pocket Agent host daemon bootstrap ready';

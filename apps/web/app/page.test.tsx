@@ -6,8 +6,8 @@ import HomePage from './page.js';
 import { ThreadScreen, WorkspaceScreen } from './screens.js';
 
 describe('mobile shell routes', () => {
-  it('renders the home dashboard with workspace links', () => {
-    render(<HomePage />);
+  it('renders the home dashboard with workspace links', async () => {
+    render(await HomePage());
 
     expect(
       screen.getByText('Host-controlled coding from the phone'),

@@ -5,12 +5,15 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http';
+import WebSocket, { WebSocketServer, type RawData } from 'ws';
 
 import {
   approvalDecisionSchema,
   createEventEnvelope,
   interruptRequestSchema,
   steerRequestSchema,
+  timelineEntrySchema,
+  transportClientMessageSchema,
 } from '@pocket-agent/remote-protocol';
 import {
   type PairingService,
@@ -102,6 +105,33 @@ export interface HostGateway {
   server: ReturnType<typeof createServer>;
   start(port?: number): Promise<number>;
   stop(): Promise<void>;
+}
+
+interface TransportConnection {
+  connectionId: string;
+  deviceId: string;
+  threadIds: Set<string>;
+}
+
+interface WorkspaceSummaryPayload {
+  id: string;
+  displayName: string;
+  rootPath: string;
+  threadCount: number;
+  activeThreadId: string | null;
+  activeControllerDeviceId: string | null;
+}
+
+interface ThreadSummaryPayload {
+  id: string;
+  workspaceId: string;
+  title: string;
+  status: 'idle' | 'streaming' | 'review';
+  updatedAt: string;
+  turnCount: number;
+  latestEventSummary: string;
+  latestEventName: string | null;
+  pendingApprovals: number;
 }
 
 async function readJson<T>(request: IncomingMessage): Promise<T> {
@@ -218,6 +248,118 @@ function readQueryValue(url: string, name: string): string | null {
   return params.get(name);
 }
 
+function toWebsocketUrl(request: IncomingMessage): URL {
+  const host = request.headers.host ?? '127.0.0.1';
+  return new URL(request.url ?? '/', `http://${host}`);
+}
+
+function formatEventSummary(event: EventRecord | null): string {
+  if (!event) {
+    return 'No timeline activity yet';
+  }
+
+  if (typeof event.payload.summary === 'string' && event.payload.summary) {
+    return event.payload.summary;
+  }
+
+  if (typeof event.payload.chunk === 'string' && event.payload.chunk) {
+    return event.payload.chunk;
+  }
+
+  if (
+    typeof event.payload.instruction === 'string' &&
+    event.payload.instruction
+  ) {
+    return event.payload.instruction;
+  }
+
+  if (typeof event.payload.reason === 'string' && event.payload.reason) {
+    return event.payload.reason;
+  }
+
+  if (typeof event.payload.status === 'string' && event.payload.status) {
+    return `Status: ${event.payload.status}`;
+  }
+
+  if (typeof event.payload.worktreePath === 'string') {
+    return `Bound worktree ${event.payload.worktreePath}`;
+  }
+
+  if (typeof event.payload.preset === 'string') {
+    return `Ran preset ${event.payload.preset}`;
+  }
+
+  return event.kind;
+}
+
+function mapThreadStatus(
+  thread: ThreadRecord,
+  latestEvent: EventRecord | null,
+  pendingApprovals: number,
+): ThreadSummaryPayload['status'] {
+  if (pendingApprovals > 0) {
+    return 'review';
+  }
+
+  if (thread.status === 'active' || latestEvent?.kind === 'turn.output') {
+    return 'streaming';
+  }
+
+  return 'idle';
+}
+
+async function buildThreadSummary(
+  sessionStore: SessionStore,
+  thread: ThreadRecord,
+): Promise<ThreadSummaryPayload> {
+  const [events, approvals] = await Promise.all([
+    sessionStore.replayThread(thread.id),
+    sessionStore.listApprovals(thread.id),
+  ]);
+  const latestEvent = events.at(-1) ?? null;
+  const pendingApprovals = approvals.filter(
+    (approval) => approval.status === 'pending',
+  ).length;
+
+  return {
+    id: thread.id,
+    workspaceId: thread.workspaceId,
+    title: thread.title,
+    status: mapThreadStatus(thread, latestEvent, pendingApprovals),
+    updatedAt: thread.updatedAt,
+    turnCount: events.length,
+    latestEventSummary: formatEventSummary(latestEvent),
+    latestEventName: latestEvent?.kind ?? null,
+    pendingApprovals,
+  };
+}
+
+async function buildWorkspaceSummary(
+  sessionStore: SessionStore,
+  workspaceId: string,
+  nowIso: string,
+): Promise<WorkspaceSummaryPayload | null> {
+  const workspace = await sessionStore.getWorkspace(workspaceId);
+
+  if (!workspace) {
+    return null;
+  }
+
+  const [threads, lease] = await Promise.all([
+    sessionStore.listThreads(workspace.id),
+    sessionStore.getControllerLease(nowIso),
+  ]);
+
+  return {
+    id: workspace.id,
+    displayName: workspace.displayName,
+    rootPath: workspace.rootPath,
+    threadCount: threads.length,
+    activeThreadId: threads[0]?.id ?? null,
+    activeControllerDeviceId: lease?.deviceId ?? null,
+  };
+}
+
 async function getNextSequence(
   sessionStore: SessionStore,
   threadId: string,
@@ -231,6 +373,9 @@ async function appendThreadEvent(
   thread: ThreadRecord,
   event: Omit<EventRecord, 'id' | 'sequence' | 'createdAt'>,
   createdAt: string,
+  options: {
+    onAppended?: (event: EventRecord) => void;
+  } = {},
 ): Promise<EventRecord> {
   const nextEvent: EventRecord = {
     id: randomUUID(),
@@ -246,6 +391,7 @@ async function appendThreadEvent(
     ...thread,
     updatedAt: createdAt,
   });
+  options.onAppended?.(nextEvent);
 
   return nextEvent;
 }
@@ -329,6 +475,31 @@ function createDefaultCommandRunner(): CommandRunner {
 export function createHostGateway(context: GatewayContext): HostGateway {
   const now = context.now ?? (() => new Date());
   const commandRunner = context.commandRunner ?? createDefaultCommandRunner();
+  const websocketServer = new WebSocketServer({ noServer: true });
+  const transportConnections = new Map<WebSocket, TransportConnection>();
+
+  const publishThreadEvent = (event: EventRecord) => {
+    const entry = timelineEntrySchema.parse({
+      sequence: event.sequence,
+      name: event.kind,
+      createdAt: event.createdAt,
+      payload: event.payload,
+    });
+    const message = JSON.stringify({
+      type: 'timeline.event',
+      threadId: event.threadId,
+      entry,
+    });
+
+    for (const [socket, connection] of transportConnections.entries()) {
+      if (
+        socket.readyState === WebSocket.OPEN &&
+        connection.threadIds.has(event.threadId)
+      ) {
+        socket.send(message);
+      }
+    }
+  };
   const server = createServer(async (request, response) => {
     const { method = 'GET', url = '/' } = request;
 
@@ -336,7 +507,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
       writeJson(response, 200, {
         transport: 'http',
         websocket: {
-          ready: false,
+          ready: true,
           path: '/api/ws',
         },
       });
@@ -507,6 +678,121 @@ export function createHostGateway(context: GatewayContext): HostGateway {
       return;
     }
 
+    if (method === 'GET' && url === '/api/workspaces') {
+      const auth = await authenticateRequest(request, context.pairingService);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const workspaces = await context.sessionStore.listWorkspaces();
+      const summaries = await Promise.all(
+        workspaces.map((workspace) =>
+          buildWorkspaceSummary(
+            context.sessionStore,
+            workspace.id,
+            now().toISOString(),
+          ),
+        ),
+      );
+
+      writeJson(response, 200, {
+        workspaces: summaries.filter(
+          (summary): summary is WorkspaceSummaryPayload => summary !== null,
+        ),
+      });
+      return;
+    }
+
+    const workspaceMatch = routeMatch(url, /^\/api\/workspaces\/([^/]+)$/);
+
+    if (method === 'GET' && workspaceMatch) {
+      const auth = await authenticateRequest(request, context.pairingService);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const summary = await buildWorkspaceSummary(
+        context.sessionStore,
+        workspaceMatch[1]!,
+        now().toISOString(),
+      );
+
+      if (!summary) {
+        writeJson(response, 404, { error: 'Workspace not found' });
+        return;
+      }
+
+      writeJson(response, 200, { workspace: summary });
+      return;
+    }
+
+    const workspaceThreadsMatch = routeMatch(
+      url,
+      /^\/api\/workspaces\/([^/]+)\/threads$/,
+    );
+
+    if (method === 'GET' && workspaceThreadsMatch) {
+      const auth = await authenticateRequest(request, context.pairingService);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const workspace = await context.sessionStore.getWorkspace(
+        workspaceThreadsMatch[1]!,
+      );
+
+      if (!workspace) {
+        writeJson(response, 404, { error: 'Workspace not found' });
+        return;
+      }
+
+      const threads = await context.sessionStore.listThreads(workspace.id);
+      const summaries = await Promise.all(
+        threads.map((thread) =>
+          buildThreadSummary(context.sessionStore, thread),
+        ),
+      );
+
+      writeJson(response, 200, {
+        workspace: await buildWorkspaceSummary(
+          context.sessionStore,
+          workspace.id,
+          now().toISOString(),
+        ),
+        threads: summaries,
+      });
+      return;
+    }
+
+    const threadMatch = routeMatch(url, /^\/api\/threads\/([^/]+)$/);
+
+    if (method === 'GET' && threadMatch) {
+      const auth = await authenticateRequest(request, context.pairingService);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const thread = await context.sessionStore.getThread(threadMatch[1]!);
+
+      if (!thread) {
+        writeJson(response, 404, { error: 'Thread not found' });
+        return;
+      }
+
+      writeJson(response, 200, {
+        thread: await buildThreadSummary(context.sessionStore, thread),
+      });
+      return;
+    }
+
     const timelineMatch = routeMatch(
       url,
       /^\/api\/threads\/([^/]+)\/timeline$/,
@@ -587,6 +873,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
+        { onAppended: publishThreadEvent },
       );
 
       await appendAudit(
@@ -642,6 +929,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
+        { onAppended: publishThreadEvent },
       );
 
       await appendAudit(
@@ -716,6 +1004,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         resolvedAt,
+        { onAppended: publishThreadEvent },
       );
 
       await appendAudit(
@@ -893,6 +1182,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
+        { onAppended: publishThreadEvent },
       );
 
       await appendAudit(
@@ -989,6 +1279,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
+        { onAppended: publishThreadEvent },
       );
 
       await appendAudit(
@@ -1063,6 +1354,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
+        { onAppended: publishThreadEvent },
       );
 
       await appendAudit(
@@ -1090,6 +1382,89 @@ export function createHostGateway(context: GatewayContext): HostGateway {
     writeJson(response, 404, { error: `Unknown route: ${method} ${url}` });
   });
 
+  websocketServer.on('connection', (socket: WebSocket) => {
+    socket.on('message', async (rawMessage: RawData) => {
+      try {
+        const message = transportClientMessageSchema.parse(
+          JSON.parse(rawMessage.toString('utf8')),
+        );
+        const connection = transportConnections.get(socket);
+
+        if (!connection) {
+          return;
+        }
+
+        const thread = await context.sessionStore.getThread(message.threadId);
+
+        if (!thread) {
+          socket.send(
+            JSON.stringify({
+              type: 'subscribed',
+              threadId: message.threadId,
+              error: 'Thread not found',
+            }),
+          );
+          return;
+        }
+
+        connection.threadIds.add(message.threadId);
+        socket.send(
+          JSON.stringify({
+            type: 'subscribed',
+            threadId: message.threadId,
+          }),
+        );
+      } catch {
+        socket.close(1008, 'Invalid transport message');
+      }
+    });
+
+    socket.on('close', () => {
+      transportConnections.delete(socket);
+    });
+  });
+
+  server.on('upgrade', (request, socket, head) => {
+    const requestUrl = toWebsocketUrl(request);
+
+    if (requestUrl.pathname !== '/api/ws') {
+      socket.destroy();
+      return;
+    }
+
+    const accessToken =
+      requestUrl.searchParams.get('accessToken') ?? getBearerToken(request);
+
+    if (!accessToken) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    try {
+      const authenticated = context.pairingService.authenticate(accessToken);
+
+      websocketServer.handleUpgrade(request, socket, head, (ws: WebSocket) => {
+        const connectionId = randomUUID();
+        transportConnections.set(ws, {
+          connectionId,
+          deviceId: authenticated.deviceId,
+          threadIds: new Set<string>(),
+        });
+        ws.send(
+          JSON.stringify({
+            type: 'ready',
+            connectionId,
+          }),
+        );
+        websocketServer.emit('connection', ws, request);
+      });
+    } catch {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+    }
+  });
+
   return {
     server,
     async start(port = context.config.port) {
@@ -1105,6 +1480,12 @@ export function createHostGateway(context: GatewayContext): HostGateway {
       return address.port;
     },
     async stop() {
+      for (const socket of transportConnections.keys()) {
+        socket.close();
+      }
+      await new Promise<void>((resolve) => {
+        websocketServer.close(() => resolve());
+      });
       await new Promise<void>((resolve, reject) => {
         server.close((error) => {
           if (error) {

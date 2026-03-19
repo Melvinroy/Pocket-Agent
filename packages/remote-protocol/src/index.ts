@@ -59,6 +59,27 @@ export const interruptRequestSchema = z.object({
   reason: z.string().min(1).optional(),
 });
 
+export const transportClientMessageSchema = z.object({
+  action: z.literal('subscribe'),
+  threadId: z.string().min(1),
+});
+
+export const transportServerMessageSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('ready'),
+    connectionId: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('subscribed'),
+    threadId: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('timeline.event'),
+    threadId: z.string().min(1),
+    entry: timelineEntrySchema,
+  }),
+]);
+
 export const envelopeSchema = z.object({
   protocolVersion: z.literal(PROTOCOL_VERSION),
   id: z.string().min(1),
@@ -96,6 +117,12 @@ export type EventName = z.infer<typeof eventNameSchema>;
 export type Capabilities = z.infer<typeof capabilitiesSchema>;
 export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
 export type ApprovalDecision = z.infer<typeof approvalDecisionSchema>;
+export type TransportClientMessage = z.infer<
+  typeof transportClientMessageSchema
+>;
+export type TransportServerMessage = z.infer<
+  typeof transportServerMessageSchema
+>;
 export type RequestEnvelope = z.infer<typeof requestEnvelopeSchema>;
 export type ResponseEnvelope = z.infer<typeof responseEnvelopeSchema>;
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;

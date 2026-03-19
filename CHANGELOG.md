@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-19
+
+### Added
+
+- Host gateway discovery endpoints for workspace and thread summaries.
+- Websocket transport at `/api/ws` for live thread timeline subscriptions.
+- Web shell host integration that uses `POCKET_AGENT_HOST_URL` and `POCKET_AGENT_ACCESS_TOKEN` when available.
+- Host `--serve` mode that seeds a local demo workspace and prints a controller token for dogfooding.
+
 ## [1.0.0] - 2026-03-19
 
 ### Changed

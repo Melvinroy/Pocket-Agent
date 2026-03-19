@@ -12,12 +12,21 @@ import {
   TimelinePreview,
 } from '@pocket-agent/ui';
 
+import type { ShellStateView, TransportConfig } from './live-data';
+import { LiveTimeline } from './live-timeline';
 import {
+  type ApprovalSummary,
+  type FileChangeSummary,
   getThread,
   getThreadApprovals,
   getThreadFiles,
   getThreadPresets,
   getThreadTimeline,
+  type TerminalPresetSummary,
+  type ThreadSummary,
+  type TimelineEntry,
+  type WorktreeSummary,
+  type WorkspaceSummary,
   getWorkspace,
   getWorkspaceFiles,
   getWorkspaceWorktrees,
@@ -63,7 +72,7 @@ function approvalTone(status: string) {
   return 'warning';
 }
 
-function ShellMeta() {
+function ShellMeta({ shell }: { shell: ShellStateView }) {
   return (
     <div
       style={{
@@ -73,21 +82,27 @@ function ShellMeta() {
         justifyContent: 'flex-end',
       }}
     >
-      <StatusPill tone="success">{shellState.connection}</StatusPill>
-      <StatusPill tone="neutral">{shellState.role}</StatusPill>
+      <StatusPill tone="success">{shell.connection}</StatusPill>
+      <StatusPill tone="neutral">{shell.role}</StatusPill>
     </div>
   );
 }
 
-export function HomeScreen() {
-  const featuredThread = threads[0];
-
+export function HomeScreen({
+  shell = shellState,
+  workspaceItems = workspaces,
+  featuredThread = threads[0] ?? null,
+}: {
+  shell?: ShellStateView;
+  workspaceItems?: WorkspaceSummary[];
+  featuredThread?: ThreadSummary | null;
+}) {
   return (
     <PhoneShell
       eyebrow="Pocket Agent"
       title="Host-controlled coding from the phone"
       description="Continue active Codex sessions from mobile or web while the desktop host keeps the repository, credentials, execution, and policy boundary."
-      meta={<ShellMeta />}
+      meta={<ShellMeta shell={shell} />}
     >
       <SectionCard
         title="Remote posture"
@@ -97,18 +112,18 @@ export function HomeScreen() {
           items={[
             {
               label: 'Connection',
-              value: shellState.connection,
-              hint: shellState.reconnectLabel,
+              value: shell.connection,
+              hint: shell.reconnectLabel,
             },
             {
               label: 'Workspaces',
-              value: String(workspaces.length),
+              value: String(workspaceItems.length),
               hint: 'host-known repos',
             },
             {
               label: 'Active role',
-              value: shellState.role,
-              hint: shellState.deviceName,
+              value: shell.role,
+              hint: shell.deviceName,
             },
           ]}
         />
@@ -120,7 +135,7 @@ export function HomeScreen() {
         action={<StatusPill tone="neutral">PWA shell</StatusPill>}
       >
         <DetailList
-          items={workspaces.map((workspace) => ({
+          items={workspaceItems.map((workspace) => ({
             id: workspace.id,
             title: (
               <Link
@@ -152,43 +167,63 @@ export function HomeScreen() {
         title="Featured thread"
         subtitle="Phase 4 centers on thread detail, composer state, reconnect handling, and presence cues."
       >
-        <TimelinePreview
-          items={[
-            {
-              id: featuredThread.id,
-              title: featuredThread.title,
-              status: featuredThread.status,
-              summary: featuredThread.summary,
-              meta: `${featuredThread.updatedAt} | ${featuredThread.planState}`,
-            },
-          ]}
-        />
-        <div style={{ marginTop: 12 }}>
-          <Link
-            href={`/workspaces/${featuredThread.workspaceId}/threads/${featuredThread.id}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 46,
-              padding: '0 18px',
-              borderRadius: 999,
-              background: '#142b28',
-              color: '#f6f2e8',
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            Open active thread
-          </Link>
-        </div>
+        {featuredThread ? (
+          <>
+            <TimelinePreview
+              items={[
+                {
+                  id: featuredThread.id,
+                  title: featuredThread.title,
+                  status: featuredThread.status,
+                  summary: featuredThread.summary,
+                  meta: `${featuredThread.updatedAt} | ${featuredThread.planState}`,
+                },
+              ]}
+            />
+            <div style={{ marginTop: 12 }}>
+              <Link
+                href={`/workspaces/${featuredThread.workspaceId}/threads/${featuredThread.id}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 46,
+                  padding: '0 18px',
+                  borderRadius: 999,
+                  background: '#142b28',
+                  color: '#f6f2e8',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                Open active thread
+              </Link>
+            </div>
+          </>
+        ) : (
+          <StatusPill tone="neutral">No active thread</StatusPill>
+        )}
       </SectionCard>
     </PhoneShell>
   );
 }
 
-export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
-  const workspace = getWorkspace(workspaceId);
+export function WorkspaceScreen({
+  workspaceId,
+  shell = shellState,
+  workspaceData,
+  workspaceThreadsData,
+  workspaceFilesData,
+  workspaceWorktreesData,
+}: {
+  workspaceId: string;
+  shell?: ShellStateView;
+  workspaceData?: WorkspaceSummary | null;
+  workspaceThreadsData?: ThreadSummary[];
+  workspaceFilesData?: FileChangeSummary[];
+  workspaceWorktreesData?: WorktreeSummary[];
+}) {
+  const workspace = workspaceData ?? getWorkspace(workspaceId);
 
   if (!workspace) {
     return (
@@ -196,7 +231,7 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
         eyebrow="Pocket Agent"
         title="Workspace missing"
         description="The selected workspace is not available in the local shell seed data."
-        meta={<ShellMeta />}
+        meta={<ShellMeta shell={shell} />}
       >
         <SectionCard
           title="Return home"
@@ -210,16 +245,18 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
     );
   }
 
-  const workspaceThreads = getWorkspaceThreads(workspace.id);
-  const workspaceFiles = getWorkspaceFiles(workspace.id);
-  const workspaceWorktrees = getWorkspaceWorktrees(workspace.id);
+  const workspaceThreads =
+    workspaceThreadsData ?? getWorkspaceThreads(workspace.id);
+  const workspaceFiles = workspaceFilesData ?? getWorkspaceFiles(workspace.id);
+  const workspaceWorktrees =
+    workspaceWorktreesData ?? getWorkspaceWorktrees(workspace.id);
 
   return (
     <PhoneShell
       eyebrow={workspace.name}
       title={workspace.repo}
       description="Workspace detail shows branch, controller, thread list, and safe next actions without granting direct filesystem access."
-      meta={<ShellMeta />}
+      meta={<ShellMeta shell={shell} />}
     >
       <SectionCard
         title="Lease state"
@@ -341,16 +378,32 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
 export function ThreadScreen({
   workspaceId,
   threadId,
+  shell = shellState,
+  workspaceData,
+  threadData,
+  timelineData,
+  approvalsData,
+  changedFilesData,
+  presetsData,
+  transport,
 }: {
   workspaceId: string;
   threadId: string;
+  shell?: ShellStateView;
+  workspaceData?: WorkspaceSummary | null;
+  threadData?: ThreadSummary | null;
+  timelineData?: TimelineEntry[];
+  approvalsData?: ApprovalSummary[];
+  changedFilesData?: FileChangeSummary[];
+  presetsData?: TerminalPresetSummary[];
+  transport?: TransportConfig;
 }) {
-  const workspace = getWorkspace(workspaceId);
-  const thread = getThread(threadId);
-  const timeline = getThreadTimeline(threadId);
-  const approvals = getThreadApprovals(threadId);
-  const changedFiles = getThreadFiles(threadId);
-  const presets = getThreadPresets(threadId);
+  const workspace = workspaceData ?? getWorkspace(workspaceId);
+  const thread = threadData ?? getThread(threadId);
+  const timeline = timelineData ?? getThreadTimeline(threadId);
+  const approvals = approvalsData ?? getThreadApprovals(threadId);
+  const changedFiles = changedFilesData ?? getThreadFiles(threadId);
+  const presets = presetsData ?? getThreadPresets(threadId);
 
   if (!workspace || !thread) {
     return (
@@ -358,7 +411,7 @@ export function ThreadScreen({
         eyebrow="Pocket Agent"
         title="Thread missing"
         description="The requested thread could not be resolved from the host-backed route snapshot."
-        meta={<ShellMeta />}
+        meta={<ShellMeta shell={shell} />}
       >
         <SectionCard
           title="Recover"
@@ -377,7 +430,7 @@ export function ThreadScreen({
       eyebrow={workspace.name}
       title={thread.title}
       description="Thread detail combines presence, reconnect state, timeline context, and a host-routed composer surface for the active controller."
-      meta={<ShellMeta />}
+      meta={<ShellMeta shell={shell} />}
     >
       <SectionCard
         title="Session state"
@@ -394,7 +447,7 @@ export function ThreadScreen({
             {
               label: 'Presence',
               value: workspace.presence,
-              hint: shellState.deviceName,
+              hint: shell.deviceName,
             },
           ]}
         />
@@ -405,7 +458,17 @@ export function ThreadScreen({
         subtitle="Plan and transport state preview the live timeline phase without exposing raw host internals."
         action={<StatusPill tone="warning">reconnect aware</StatusPill>}
       >
-        <TimelinePreview items={timeline} />
+        <LiveTimeline
+          threadId={threadId}
+          initialItems={timeline}
+          transport={
+            transport ?? {
+              enabled: false,
+              websocketUrl: null,
+              accessToken: null,
+            }
+          }
+        />
       </SectionCard>
 
       <SectionCard

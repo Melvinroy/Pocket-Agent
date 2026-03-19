@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
+import WebSocket, { type RawData } from 'ws';
 
 import {
   PairingService,
@@ -332,6 +333,86 @@ describe('host gateway', () => {
     expect(timelinePayload.timeline[0]?.envelope.name).toBe('turn.output');
     expect(timelinePayload.approvals[0]?.status).toBe('pending');
 
+    const workspacesResponse = await fetch(
+      `http://127.0.0.1:${port}/api/workspaces`,
+      {
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+        },
+      },
+    );
+    const workspacesPayload = (await workspacesResponse.json()) as {
+      workspaces: Array<{ id: string; activeThreadId: string | null }>;
+    };
+
+    expect(workspacesResponse.status).toBe(200);
+    expect(workspacesPayload.workspaces[0]?.id).toBe('workspace-1');
+
+    const threadListResponse = await fetch(
+      `http://127.0.0.1:${port}/api/workspaces/workspace-1/threads`,
+      {
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+        },
+      },
+    );
+    const threadListPayload = (await threadListResponse.json()) as {
+      threads: Array<{ id: string; status: string }>;
+    };
+
+    expect(threadListResponse.status).toBe(200);
+    expect(threadListPayload.threads[0]?.id).toBe('thread-1');
+
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${port}/api/ws?accessToken=${controller.accessToken}`,
+    );
+    cleanups.push(
+      () =>
+        new Promise<void>((cleanupResolve) => {
+          socket.once('close', () => cleanupResolve());
+          socket.close();
+        }),
+    );
+
+    let resolveSubscribed: (() => void) | null = null;
+    const subscriptionReady = new Promise<void>((resolve) => {
+      resolveSubscribed = resolve;
+    });
+
+    const streamedEvent = new Promise<{
+      type: string;
+      threadId: string;
+      entry: { name: string; payload: Record<string, unknown> };
+    }>((resolve, reject) => {
+      socket.once('open', () => {
+        socket.send(
+          JSON.stringify({
+            action: 'subscribe',
+            threadId: 'thread-1',
+          }),
+        );
+      });
+      socket.on('message', (raw: RawData) => {
+        const payload = JSON.parse(raw.toString('utf8')) as
+          | { type: 'ready' | 'subscribed' }
+          | {
+              type: 'timeline.event';
+              threadId: string;
+              entry: { name: string; payload: Record<string, unknown> };
+            };
+
+        if (payload.type === 'subscribed') {
+          resolveSubscribed?.();
+          resolveSubscribed = null;
+        }
+
+        if (payload.type === 'timeline.event') {
+          resolve(payload);
+        }
+      });
+      socket.on('error', reject);
+    });
+
     const viewerSteer = await fetch(
       `http://127.0.0.1:${port}/api/threads/thread-1/steer`,
       {
@@ -345,6 +426,8 @@ describe('host gateway', () => {
     );
 
     expect(viewerSteer.status).toBe(403);
+
+    await subscriptionReady;
 
     const controllerSteer = await fetch(
       `http://127.0.0.1:${port}/api/threads/thread-1/steer`,
@@ -364,6 +447,12 @@ describe('host gateway', () => {
     expect(controllerSteer.status).toBe(202);
     expect(steerPayload.event.kind).toBe('turn.plan');
     expect(steerPayload.event.payload.instruction).toBe('Continue phase 5');
+
+    const liveEventPayload = await streamedEvent;
+
+    expect(liveEventPayload.threadId).toBe('thread-1');
+    expect(liveEventPayload.entry.name).toBe('turn.plan');
+    expect(liveEventPayload.entry.payload.instruction).toBe('Continue phase 5');
 
     const resolveResponse = await fetch(
       `http://127.0.0.1:${port}/api/approvals/approval-1/resolve`,
@@ -535,5 +624,5 @@ describe('host gateway', () => {
     expect(presetPayload.result.exitCode).toBe(0);
     expect(presetPayload.result.stdout).toContain('preset ran');
     expect(presetPayload.event.kind).toBe('turn.output');
-  });
+  }, 10_000);
 });

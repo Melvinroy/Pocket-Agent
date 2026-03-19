@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.0.0` is the first stable public release candidate. The repository now includes the host daemon, mobile-first web shell, Codex bridge, persistence, pairing and auth, approvals, file and review flows, terminal presets, worktree handling, and OSS operator documentation.
+Pocket Agent `1.1.0` adds live host transport for dogfooding. The repository now includes a websocket-capable host gateway, live workspace and thread discovery for the web shell, timeline streaming, and a local `--serve` path that prints a controller token for immediate bring-up.
 
 ## Principles
 
@@ -36,7 +36,10 @@ corepack pnpm lint
 corepack pnpm typecheck
 corepack pnpm test
 corepack pnpm build
+corepack pnpm --filter @pocket-agent/hostd dev -- --serve
 ```
+
+Set `POCKET_AGENT_HOST_URL` and `POCKET_AGENT_ACCESS_TOKEN` for the web app to use the live host transport instead of seeded shell data.
 
 ## Compatibility
 
