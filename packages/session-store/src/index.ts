@@ -210,11 +210,13 @@ export interface SessionStore {
   listWorkspaces(): Promise<WorkspaceRecord[]>;
   upsertWorkspace(workspace: WorkspaceRecord): Promise<void>;
   listThreads(workspaceId: string): Promise<ThreadRecord[]>;
+  getThread(threadId: string): Promise<ThreadRecord | null>;
   upsertThread(thread: ThreadRecord): Promise<void>;
   appendEvent(event: EventRecord): Promise<void>;
   replayThread(threadId: string): Promise<EventRecord[]>;
   getLatestEvent(threadId: string): Promise<EventRecord | null>;
   saveApproval(approval: ApprovalRecord): Promise<void>;
+  getApproval(approvalId: string): Promise<ApprovalRecord | null>;
   listApprovals(threadId: string): Promise<ApprovalRecord[]>;
   registerDevice(device: DeviceRecord): Promise<void>;
   acquireControllerLease(lease: ControllerLeaseRecord): Promise<boolean>;
@@ -245,6 +247,9 @@ export function createInMemorySessionStore(): SessionStore {
         (thread) => thread.workspaceId === workspaceId,
       );
     },
+    async getThread(threadId) {
+      return threads.get(threadId) ?? null;
+    },
     async upsertThread(thread) {
       threads.set(thread.id, thread);
     },
@@ -266,6 +271,19 @@ export function createInMemorySessionStore(): SessionStore {
         ...existing.filter((entry) => entry.id !== approval.id),
         approval,
       ]);
+    },
+    async getApproval(approvalId) {
+      for (const threadApprovals of approvals.values()) {
+        const approval = threadApprovals.find(
+          (entry) => entry.id === approvalId,
+        );
+
+        if (approval) {
+          return approval;
+        }
+      }
+
+      return null;
     },
     async listApprovals(threadId) {
       return approvals.get(threadId) ?? [];
@@ -388,6 +406,27 @@ export class SqliteSessionStore implements SessionStore {
         `,
       )
       .all(workspaceId) as unknown as ThreadRecord[];
+  }
+
+  public async getThread(threadId: string): Promise<ThreadRecord | null> {
+    const row = this.connection
+      .prepare(
+        `
+          SELECT
+            id,
+            workspace_id AS workspaceId,
+            title,
+            status,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+          FROM threads
+          WHERE id = ?
+          LIMIT 1
+        `,
+      )
+      .get(threadId) as ThreadRecord | undefined;
+
+    return row ?? null;
   }
 
   public async upsertThread(thread: ThreadRecord): Promise<void> {
@@ -547,6 +586,26 @@ export class SqliteSessionStore implements SessionStore {
         `,
       )
       .all(threadId) as unknown as ApprovalRecord[];
+  }
+
+  public async getApproval(approvalId: string): Promise<ApprovalRecord | null> {
+    const row = this.connection
+      .prepare(
+        `
+          SELECT
+            id,
+            thread_id AS threadId,
+            status,
+            requested_at AS requestedAt,
+            resolved_at AS resolvedAt
+          FROM approvals
+          WHERE id = ?
+          LIMIT 1
+        `,
+      )
+      .get(approvalId) as ApprovalRecord | undefined;
+
+    return row ?? null;
   }
 
   public async registerDevice(device: DeviceRecord): Promise<void> {

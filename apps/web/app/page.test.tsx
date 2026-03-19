@@ -36,6 +36,10 @@ describe('mobile shell routes', () => {
     );
 
     expect(screen.getByText('Session state')).toBeTruthy();
+    expect(screen.getByText('Controller actions')).toBeTruthy();
+    expect(
+      screen.getAllByText('Allow host-side preview build').length,
+    ).toBeGreaterThan(1);
     expect(screen.getByText('Send a steer or continue prompt')).toBeTruthy();
     expect(screen.getByText('Reconnect UX stubbed')).toBeTruthy();
   });

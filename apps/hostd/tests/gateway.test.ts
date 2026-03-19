@@ -4,7 +4,10 @@ import {
   PairingService,
   DEFAULT_SECURITY_POLICY,
 } from '@codex-remote/security';
-import { createInMemorySessionStore } from '@codex-remote/session-store';
+import {
+  createInMemorySessionStore,
+  type SessionStore,
+} from '@codex-remote/session-store';
 
 import { createHostGateway } from '../src/lib/gateway.js';
 
@@ -16,6 +19,71 @@ afterEach(async () => {
   }
 });
 
+const fixedNow = () => new Date('2026-03-19T00:00:00.000Z');
+
+async function createControllerSession(port: number) {
+  const startResponse = await fetch(
+    `http://127.0.0.1:${port}/api/pairing/start`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ role: 'controller' }),
+    },
+  );
+  const started = (await startResponse.json()) as {
+    pairingSession: { id: string; confirmationCode: string };
+  };
+  const confirmResponse = await fetch(
+    `http://127.0.0.1:${port}/api/pairing/confirm`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        pairingId: started.pairingSession.id,
+        confirmationCode: started.pairingSession.confirmationCode,
+        displayName: 'Primary Phone',
+      }),
+    },
+  );
+
+  return (await confirmResponse.json()) as {
+    accessToken: string;
+    device: { id: string };
+  };
+}
+
+async function seedThreadState(sessionStore: SessionStore) {
+  await sessionStore.upsertWorkspace({
+    id: 'workspace-1',
+    rootPath: 'C:/workspace',
+    displayName: 'Pocket Agent',
+    createdAt: fixedNow().toISOString(),
+  });
+  await sessionStore.upsertThread({
+    id: 'thread-1',
+    workspaceId: 'workspace-1',
+    title: 'Timeline approvals',
+    status: 'active',
+    createdAt: fixedNow().toISOString(),
+    updatedAt: fixedNow().toISOString(),
+  });
+  await sessionStore.appendEvent({
+    id: 'event-1',
+    threadId: 'thread-1',
+    sequence: 1,
+    kind: 'turn.output',
+    payload: { chunk: 'host booted' },
+    createdAt: fixedNow().toISOString(),
+  });
+  await sessionStore.saveApproval({
+    id: 'approval-1',
+    threadId: 'thread-1',
+    status: 'pending',
+    requestedAt: fixedNow().toISOString(),
+    resolvedAt: null,
+  });
+}
+
 describe('host gateway', () => {
   it('creates a pairing session and confirms a viewer device', async () => {
     const gateway = createHostGateway({
@@ -25,9 +93,9 @@ describe('host gateway', () => {
         logLevel: 'info',
         allowedOrigin: null,
       },
-      now: () => new Date('2026-03-19T00:00:00.000Z'),
+      now: fixedNow,
       pairingService: new PairingService({
-        now: () => new Date('2026-03-19T00:00:00.000Z'),
+        now: fixedNow,
       }),
       sessionStore: createInMemorySessionStore(),
       policy: DEFAULT_SECURITY_POLICY,
@@ -83,9 +151,9 @@ describe('host gateway', () => {
         logLevel: 'info',
         allowedOrigin: null,
       },
-      now: () => new Date('2026-03-19T00:00:00.000Z'),
+      now: fixedNow,
       pairingService: new PairingService({
-        now: () => new Date('2026-03-19T00:00:00.000Z'),
+        now: fixedNow,
       }),
       sessionStore: createInMemorySessionStore(),
       policy: DEFAULT_SECURITY_POLICY,
@@ -166,5 +234,146 @@ describe('host gateway', () => {
     );
 
     expect(revokeResponse.status).toBe(200);
+  });
+
+  it('streams timeline state and restricts steer plus approval actions to the controller', async () => {
+    const sessionStore = createInMemorySessionStore();
+    await seedThreadState(sessionStore);
+
+    const gateway = createHostGateway({
+      config: {
+        bindAddress: '127.0.0.1',
+        port: 0,
+        logLevel: 'info',
+        allowedOrigin: null,
+      },
+      now: fixedNow,
+      pairingService: new PairingService({
+        now: fixedNow,
+      }),
+      sessionStore,
+      policy: DEFAULT_SECURITY_POLICY,
+    });
+    cleanups.push(() => gateway.stop());
+    const port = await gateway.start(0);
+
+    const controller = await createControllerSession(port);
+
+    const viewerStart = await fetch(
+      `http://127.0.0.1:${port}/api/pairing/start`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ role: 'viewer' }),
+      },
+    );
+    const viewerPairing = (await viewerStart.json()) as {
+      pairingSession: { id: string; confirmationCode: string };
+    };
+    const viewerConfirm = await fetch(
+      `http://127.0.0.1:${port}/api/pairing/confirm`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          pairingId: viewerPairing.pairingSession.id,
+          confirmationCode: viewerPairing.pairingSession.confirmationCode,
+          displayName: 'Viewer Phone',
+        }),
+      },
+    );
+    const viewer = (await viewerConfirm.json()) as { accessToken: string };
+
+    const timelineResponse = await fetch(
+      `http://127.0.0.1:${port}/api/threads/thread-1/timeline`,
+      {
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+        },
+      },
+    );
+    const timelinePayload = (await timelineResponse.json()) as {
+      approvals: Array<{ id: string; status: string }>;
+      timeline: Array<{
+        sequence: number;
+        envelope: { name: string; payload: Record<string, unknown> };
+      }>;
+    };
+
+    expect(timelineResponse.status).toBe(200);
+    expect(timelinePayload.timeline[0]?.envelope.name).toBe('turn.output');
+    expect(timelinePayload.approvals[0]?.status).toBe('pending');
+
+    const viewerSteer = await fetch(
+      `http://127.0.0.1:${port}/api/threads/thread-1/steer`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${viewer.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ instruction: 'Continue phase 5' }),
+      },
+    );
+
+    expect(viewerSteer.status).toBe(403);
+
+    const controllerSteer = await fetch(
+      `http://127.0.0.1:${port}/api/threads/thread-1/steer`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ instruction: 'Continue phase 5' }),
+      },
+    );
+    const steerPayload = (await controllerSteer.json()) as {
+      event: { kind: string; payload: { instruction: string } };
+    };
+
+    expect(controllerSteer.status).toBe(202);
+    expect(steerPayload.event.kind).toBe('turn.plan');
+    expect(steerPayload.event.payload.instruction).toBe('Continue phase 5');
+
+    const resolveResponse = await fetch(
+      `http://127.0.0.1:${port}/api/approvals/approval-1/resolve`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ decision: 'approved' }),
+      },
+    );
+    const resolvePayload = (await resolveResponse.json()) as {
+      approval: { status: string };
+      event: { kind: string };
+    };
+
+    expect(resolveResponse.status).toBe(200);
+    expect(resolvePayload.approval.status).toBe('approved');
+    expect(resolvePayload.event.kind).toBe('approval.resolved');
+
+    const interruptResponse = await fetch(
+      `http://127.0.0.1:${port}/api/threads/thread-1/interrupt`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ reason: 'Need approval context' }),
+      },
+    );
+    const interruptPayload = (await interruptResponse.json()) as {
+      event: { kind: string; payload: { status: string } };
+    };
+
+    expect(interruptResponse.status).toBe(202);
+    expect(interruptPayload.event.kind).toBe('turn.status');
+    expect(interruptPayload.event.payload.status).toBe('interrupted');
   });
 });

@@ -36,3 +36,10 @@
 - Replaced the placeholder web landing page with workspace, thread, reconnect, presence, and composer route screens.
 - Expanded the shared UI package to support reusable stat cards, action strips, and detail lists for the PWA.
 - Promoted the repository version to `0.5.0` and added mobile shell milestone release documentation.
+
+### Timeline and approvals
+
+- Created the `codex/feat/timeline-approvals` slice for live thread control and approval handling.
+- Added authenticated timeline retrieval, controller-only steer and interrupt actions, and approval resolution to the host gateway.
+- Expanded the thread shell to surface approval sheets and controller action affordances.
+- Promoted the repository version to `0.6.0` and added timeline milestone release documentation.

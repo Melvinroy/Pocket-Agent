@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded shared UI primitives for stats, action strips, detail lists, and composer surfaces.
 - Route-level browser tests for the home, workspace, and thread shells.
 
+## [0.6.0] - 2026-03-19
+
+### Added
+
+- Authenticated timeline retrieval endpoint for replayable thread events and approvals.
+- Controller-gated steer, interrupt, and approval resolution actions on the host gateway.
+- Protocol helpers for timeline entries and approval decisions.
+- Approval and control-state surfaces in the thread detail PWA shell.
+
 ## [0.3.0] - 2026-03-19
 
 ### Added

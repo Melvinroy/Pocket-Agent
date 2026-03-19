@@ -6,15 +6,24 @@ import {
 } from 'node:http';
 
 import {
+  approvalDecisionSchema,
+  createEventEnvelope,
+  interruptRequestSchema,
+  steerRequestSchema,
+} from '@codex-remote/remote-protocol';
+import {
   type PairingService,
   redactSecrets,
   type SecurityPolicy,
 } from '@codex-remote/security';
 import type {
   AuditLogRecord,
+  ApprovalRecord,
   ControllerLeaseRecord,
   DeviceRecord,
+  EventRecord,
   SessionStore,
+  ThreadRecord,
 } from '@codex-remote/session-store';
 
 import type { HostConfig } from './config.js';
@@ -35,6 +44,18 @@ interface GatewayContext {
   sessionStore: SessionStore;
   policy: SecurityPolicy;
   now?: () => Date;
+}
+
+interface SteerBody {
+  instruction?: string;
+}
+
+interface InterruptBody {
+  reason?: string;
+}
+
+interface ApprovalResolveBody {
+  decision?: 'approved' | 'rejected';
 }
 
 export interface HostGateway {
@@ -77,6 +98,110 @@ function getBearerToken(request: IncomingMessage): string | null {
   }
 
   return header.slice('Bearer '.length);
+}
+
+async function authenticateRequest(
+  request: IncomingMessage,
+  pairingService: PairingService,
+): Promise<
+  | {
+      ok: true;
+      authenticated: ReturnType<PairingService['authenticate']>;
+    }
+  | { ok: false; statusCode: number; error: string }
+> {
+  const token = getBearerToken(request);
+
+  if (!token) {
+    return { ok: false, statusCode: 401, error: 'Missing bearer token' };
+  }
+
+  try {
+    return { ok: true, authenticated: pairingService.authenticate(token) };
+  } catch (error) {
+    return {
+      ok: false,
+      statusCode: 401,
+      error: error instanceof Error ? error.message : 'Unable to authenticate',
+    };
+  }
+}
+
+async function requireController(
+  request: IncomingMessage,
+  context: GatewayContext,
+  now: () => Date,
+): Promise<
+  | {
+      ok: true;
+      authenticated: ReturnType<PairingService['authenticate']>;
+    }
+  | { ok: false; statusCode: number; error: string }
+> {
+  const auth = await authenticateRequest(request, context.pairingService);
+
+  if (!auth.ok) {
+    return auth;
+  }
+
+  if (auth.authenticated.role !== 'controller') {
+    return {
+      ok: false,
+      statusCode: 403,
+      error: 'Controller access is required for this action',
+    };
+  }
+
+  const lease = await context.sessionStore.getControllerLease(
+    now().toISOString(),
+  );
+
+  if (!lease || lease.deviceId !== auth.authenticated.deviceId) {
+    return {
+      ok: false,
+      statusCode: 409,
+      error: 'This device does not hold the active controller lease',
+    };
+  }
+
+  return auth;
+}
+
+function routeMatch(url: string, pattern: RegExp): RegExpExecArray | null {
+  const pathname = url.split('?')[0] ?? url;
+  return pattern.exec(pathname);
+}
+
+async function getNextSequence(
+  sessionStore: SessionStore,
+  threadId: string,
+): Promise<number> {
+  const latest = await sessionStore.getLatestEvent(threadId);
+  return (latest?.sequence ?? 0) + 1;
+}
+
+async function appendThreadEvent(
+  sessionStore: SessionStore,
+  thread: ThreadRecord,
+  event: Omit<EventRecord, 'id' | 'sequence' | 'createdAt'>,
+  createdAt: string,
+): Promise<EventRecord> {
+  const nextEvent: EventRecord = {
+    id: randomUUID(),
+    threadId: thread.id,
+    sequence: await getNextSequence(sessionStore, thread.id),
+    kind: event.kind,
+    payload: event.payload,
+    createdAt,
+  };
+
+  await sessionStore.appendEvent(nextEvent);
+  await sessionStore.upsertThread({
+    ...thread,
+    updatedAt: createdAt,
+  });
+
+  return nextEvent;
 }
 
 async function appendAudit(
@@ -218,21 +343,23 @@ export function createHostGateway(context: GatewayContext): HostGateway {
 
     if (method === 'POST' && url === '/api/tokens/revoke') {
       const token = getBearerToken(request);
+      const auth = await authenticateRequest(request, context.pairingService);
 
-      if (!token) {
-        writeJson(response, 401, { error: 'Missing bearer token' });
+      if (!auth.ok || !token) {
+        writeJson(response, auth.ok ? 401 : auth.statusCode, {
+          error: auth.ok ? 'Missing bearer token' : auth.error,
+        });
         return;
       }
 
       try {
-        const authenticated = context.pairingService.authenticate(token);
         context.pairingService.revokeToken(token);
         await appendAudit(
           context.sessionStore,
           'token.revoked',
-          authenticated.deviceId,
+          auth.authenticated.deviceId,
           {
-            role: authenticated.role,
+            role: auth.authenticated.role,
           },
           now().toISOString(),
         );
@@ -247,23 +374,22 @@ export function createHostGateway(context: GatewayContext): HostGateway {
     }
 
     if (method === 'GET' && url === '/api/session') {
-      const token = getBearerToken(request);
+      const auth = await authenticateRequest(request, context.pairingService);
 
-      if (!token) {
-        writeJson(response, 401, { error: 'Missing bearer token' });
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
         return;
       }
 
       try {
-        const authenticated = context.pairingService.authenticate(token);
         const lease = await context.sessionStore.getControllerLease(
           now().toISOString(),
         );
 
         writeJson(response, 200, {
-          deviceId: authenticated.deviceId,
-          role: authenticated.role,
-          expiresAt: authenticated.expiresAt,
+          deviceId: auth.authenticated.deviceId,
+          role: auth.authenticated.role,
+          expiresAt: auth.authenticated.expiresAt,
           activeControllerDeviceId: lease?.deviceId ?? null,
           policy: context.policy,
         });
@@ -273,6 +399,236 @@ export function createHostGateway(context: GatewayContext): HostGateway {
             error instanceof Error ? error.message : 'Unable to authenticate',
         });
       }
+      return;
+    }
+
+    const timelineMatch = routeMatch(
+      url,
+      /^\/api\/threads\/([^/]+)\/timeline$/,
+    );
+
+    if (method === 'GET' && timelineMatch) {
+      const auth = await authenticateRequest(request, context.pairingService);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const threadId = timelineMatch[1]!;
+      const thread = await context.sessionStore.getThread(threadId);
+
+      if (!thread) {
+        writeJson(response, 404, { error: 'Thread not found' });
+        return;
+      }
+
+      const events = await context.sessionStore.replayThread(threadId);
+      const approvals = await context.sessionStore.listApprovals(threadId);
+
+      writeJson(response, 200, {
+        thread,
+        approvals,
+        timeline: events.map((event) => ({
+          sequence: event.sequence,
+          envelope: createEventEnvelope(
+            event.kind as
+              | 'turn.status'
+              | 'turn.output'
+              | 'turn.diff'
+              | 'turn.plan'
+              | 'approval.requested'
+              | 'approval.resolved'
+              | 'thread.updated'
+              | 'bridge.lifecycle',
+            event.payload,
+            event.id,
+          ),
+          createdAt: event.createdAt,
+        })),
+      });
+      return;
+    }
+
+    const steerMatch = routeMatch(url, /^\/api\/threads\/([^/]+)\/steer$/);
+
+    if (method === 'POST' && steerMatch) {
+      const auth = await requireController(request, context, now);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const body = steerRequestSchema.parse(await readJson<SteerBody>(request));
+      const threadId = steerMatch[1]!;
+      const thread = await context.sessionStore.getThread(threadId);
+
+      if (!thread) {
+        writeJson(response, 404, { error: 'Thread not found' });
+        return;
+      }
+
+      const createdAt = now().toISOString();
+      const event = await appendThreadEvent(
+        context.sessionStore,
+        thread,
+        {
+          threadId,
+          kind: 'turn.plan',
+          payload: {
+            instruction: body.instruction,
+            actorDeviceId: auth.authenticated.deviceId,
+          },
+        },
+        createdAt,
+      );
+
+      await appendAudit(
+        context.sessionStore,
+        'thread.steer',
+        auth.authenticated.deviceId,
+        { threadId, instruction: body.instruction },
+        createdAt,
+      );
+
+      writeJson(response, 202, {
+        accepted: true,
+        event,
+      });
+      return;
+    }
+
+    const interruptMatch = routeMatch(
+      url,
+      /^\/api\/threads\/([^/]+)\/interrupt$/,
+    );
+
+    if (method === 'POST' && interruptMatch) {
+      const auth = await requireController(request, context, now);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const body = interruptRequestSchema.parse(
+        await readJson<InterruptBody>(request),
+      );
+      const threadId = interruptMatch[1]!;
+      const thread = await context.sessionStore.getThread(threadId);
+
+      if (!thread) {
+        writeJson(response, 404, { error: 'Thread not found' });
+        return;
+      }
+
+      const createdAt = now().toISOString();
+      const event = await appendThreadEvent(
+        context.sessionStore,
+        thread,
+        {
+          threadId,
+          kind: 'turn.status',
+          payload: {
+            status: 'interrupted',
+            reason: body.reason ?? 'Controller requested interrupt',
+            actorDeviceId: auth.authenticated.deviceId,
+          },
+        },
+        createdAt,
+      );
+
+      await appendAudit(
+        context.sessionStore,
+        'thread.interrupt',
+        auth.authenticated.deviceId,
+        { threadId, reason: body.reason ?? null },
+        createdAt,
+      );
+
+      writeJson(response, 202, {
+        accepted: true,
+        event,
+      });
+      return;
+    }
+
+    const approvalMatch = routeMatch(
+      url,
+      /^\/api\/approvals\/([^/]+)\/resolve$/,
+    );
+
+    if (method === 'POST' && approvalMatch) {
+      const auth = await requireController(request, context, now);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const body = await readJson<ApprovalResolveBody>(request);
+      const parsedDecision = approvalDecisionSchema.safeParse(body.decision);
+
+      if (!parsedDecision.success) {
+        writeJson(response, 400, { error: 'Invalid approval decision' });
+        return;
+      }
+
+      const approvalId = approvalMatch[1]!;
+      const approval = await context.sessionStore.getApproval(approvalId);
+
+      if (!approval) {
+        writeJson(response, 404, { error: 'Approval not found' });
+        return;
+      }
+
+      const thread = await context.sessionStore.getThread(approval.threadId);
+
+      if (!thread) {
+        writeJson(response, 404, { error: 'Thread not found' });
+        return;
+      }
+
+      const resolvedAt = now().toISOString();
+      const updatedApproval: ApprovalRecord = {
+        ...approval,
+        status: parsedDecision.data,
+        resolvedAt,
+      };
+
+      await context.sessionStore.saveApproval(updatedApproval);
+      const event = await appendThreadEvent(
+        context.sessionStore,
+        thread,
+        {
+          threadId: thread.id,
+          kind: 'approval.resolved',
+          payload: {
+            approvalId,
+            decision: parsedDecision.data,
+            actorDeviceId: auth.authenticated.deviceId,
+          },
+        },
+        resolvedAt,
+      );
+
+      await appendAudit(
+        context.sessionStore,
+        'approval.resolved',
+        auth.authenticated.deviceId,
+        {
+          approvalId,
+          threadId: thread.id,
+          decision: parsedDecision.data,
+        },
+        resolvedAt,
+      );
+
+      writeJson(response, 200, {
+        approval: updatedApproval,
+        event,
+      });
       return;
     }
 

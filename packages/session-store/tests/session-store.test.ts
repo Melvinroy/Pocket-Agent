@@ -52,6 +52,14 @@ describe('session store', () => {
         updatedAt: '2026-03-19T00:01:00.000Z',
       },
     ]);
+    await expect(store.getThread('thread-1')).resolves.toEqual({
+      id: 'thread-1',
+      workspaceId: 'workspace-1',
+      title: 'Bootstrap persistence',
+      status: 'active',
+      createdAt: '2026-03-19T00:00:00.000Z',
+      updatedAt: '2026-03-19T00:01:00.000Z',
+    });
 
     await store.dispose();
   });
@@ -215,6 +223,13 @@ describe('session store', () => {
         resolvedAt: null,
       },
     ]);
+    await expect(store.getApproval('approval-1')).resolves.toEqual({
+      id: 'approval-1',
+      threadId: 'thread-1',
+      status: 'pending',
+      requestedAt: '2026-03-19T00:03:00.000Z',
+      resolvedAt: null,
+    });
     await expect(store.listAuditLog()).resolves.toEqual([
       {
         id: 'audit-1',

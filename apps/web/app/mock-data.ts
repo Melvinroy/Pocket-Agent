@@ -30,6 +30,14 @@ export type TimelineEntry = {
   meta?: string;
 };
 
+export type ApprovalSummary = {
+  id: string;
+  threadId: string;
+  title: string;
+  status: 'pending' | 'approved' | 'rejected';
+  summary: string;
+};
+
 export const shellState = {
   deviceName: 'Melvin iPhone',
   role: 'controller',
@@ -137,6 +145,25 @@ export const timelineEntries: TimelineEntry[] = [
   },
 ];
 
+export const approvals: ApprovalSummary[] = [
+  {
+    id: 'approval-mobile-shell',
+    threadId: 'thread-mobile-shell',
+    title: 'Allow host-side preview build',
+    status: 'pending',
+    summary:
+      'Run the mobile shell build preset on the host before promoting the thread to review.',
+  },
+  {
+    id: 'approval-pairing-gateway',
+    threadId: 'thread-pairing-gateway',
+    title: 'Open websocket transport port',
+    status: 'approved',
+    summary:
+      'Transport upgrade was approved after localhost policy and revoke flow checks passed.',
+  },
+];
+
 export function getWorkspace(workspaceId: string) {
   return workspaces.find((workspace) => workspace.id === workspaceId);
 }
@@ -151,4 +178,8 @@ export function getThread(threadId: string) {
 
 export function getThreadTimeline(threadId: string) {
   return timelineEntries.filter((entry) => entry.threadId === threadId);
+}
+
+export function getThreadApprovals(threadId: string) {
+  return approvals.filter((approval) => approval.threadId === threadId);
 }

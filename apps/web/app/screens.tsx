@@ -14,6 +14,7 @@ import {
 
 import {
   getThread,
+  getThreadApprovals,
   getThreadTimeline,
   getWorkspace,
   getWorkspaceThreads,
@@ -44,6 +45,18 @@ function threadTone(status: string) {
   }
 
   return 'neutral';
+}
+
+function approvalTone(status: string) {
+  if (status === 'approved') {
+    return 'success';
+  }
+
+  if (status === 'rejected') {
+    return 'danger';
+  }
+
+  return 'warning';
 }
 
 function ShellMeta() {
@@ -117,7 +130,7 @@ export function HomeScreen() {
               <>
                 <div>{workspace.repo}</div>
                 <div>
-                  {workspace.branch} · {workspace.presence}
+                  {workspace.branch} | {workspace.presence}
                 </div>
                 {workspace.warning ? <div>{workspace.warning}</div> : null}
               </>
@@ -142,7 +155,7 @@ export function HomeScreen() {
               title: featuredThread.title,
               status: featuredThread.status,
               summary: featuredThread.summary,
-              meta: `${featuredThread.updatedAt} · ${featuredThread.planState}`,
+              meta: `${featuredThread.updatedAt} | ${featuredThread.planState}`,
             },
           ]}
         />
@@ -267,7 +280,7 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
               <>
                 <div>{thread.summary}</div>
                 <div>
-                  {thread.turnCount} turns · {thread.updatedAt}
+                  {thread.turnCount} turns | {thread.updatedAt}
                 </div>
               </>
             ),
@@ -293,6 +306,7 @@ export function ThreadScreen({
   const workspace = getWorkspace(workspaceId);
   const thread = getThread(threadId);
   const timeline = getThreadTimeline(threadId);
+  const approvals = getThreadApprovals(threadId);
 
   if (!workspace || !thread) {
     return (
@@ -348,6 +362,49 @@ export function ThreadScreen({
         action={<StatusPill tone="warning">reconnect aware</StatusPill>}
       >
         <TimelinePreview items={timeline} />
+      </SectionCard>
+
+      <SectionCard
+        title="Controller actions"
+        subtitle="Steer, interrupt, and approval handling stay controller-gated on the host."
+      >
+        <ActionStrip
+          items={[
+            {
+              label: 'Steer next turn',
+              hint: 'Queue a new plan update for the active thread',
+              tone: 'accent',
+            },
+            {
+              label: 'Interrupt safely',
+              hint: 'Stop host execution and preserve replayable state',
+              tone: 'muted',
+            },
+            {
+              label: 'Review approval queue',
+              hint: approvals[0]?.title ?? 'No approvals pending',
+              tone: 'muted',
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Approvals"
+        subtitle="Approval sheets give the controller enough context to decide without exposing host secrets."
+      >
+        <DetailList
+          items={approvals.map((approval) => ({
+            id: approval.id,
+            title: approval.title,
+            body: approval.summary,
+            badge: (
+              <StatusPill tone={approvalTone(approval.status)}>
+                {approval.status}
+              </StatusPill>
+            ),
+          }))}
+        />
       </SectionCard>
 
       <SectionCard

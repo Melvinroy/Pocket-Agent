@@ -37,9 +37,27 @@ export const eventNameSchema = z.enum([
   'turn.diff',
   'turn.plan',
   'approval.requested',
+  'approval.resolved',
   'thread.updated',
   'bridge.lifecycle',
 ]);
+
+export const timelineEntrySchema = z.object({
+  sequence: z.number().int().nonnegative(),
+  name: eventNameSchema,
+  createdAt: z.string().datetime(),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+export const approvalDecisionSchema = z.enum(['approved', 'rejected']);
+
+export const steerRequestSchema = z.object({
+  instruction: z.string().min(1),
+});
+
+export const interruptRequestSchema = z.object({
+  reason: z.string().min(1).optional(),
+});
 
 export const envelopeSchema = z.object({
   protocolVersion: z.literal(PROTOCOL_VERSION),
@@ -76,6 +94,8 @@ export const eventEnvelopeSchema = envelopeSchema.extend({
 export type CommandName = z.infer<typeof commandNameSchema>;
 export type EventName = z.infer<typeof eventNameSchema>;
 export type Capabilities = z.infer<typeof capabilitiesSchema>;
+export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
+export type ApprovalDecision = z.infer<typeof approvalDecisionSchema>;
 export type RequestEnvelope = z.infer<typeof requestEnvelopeSchema>;
 export type ResponseEnvelope = z.infer<typeof responseEnvelopeSchema>;
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;

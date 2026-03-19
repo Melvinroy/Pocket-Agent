@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   PROTOCOL_VERSION,
+  approvalDecisionSchema,
   createEventEnvelope,
   createRequestEnvelope,
   decodeEnvelope,
+  timelineEntrySchema,
 } from '../src/index.js';
 
 describe('remote protocol', () => {
@@ -46,5 +48,20 @@ describe('remote protocol', () => {
         payload: {},
       }),
     ).toThrow(/Invalid protocol envelope/);
+  });
+
+  it('validates timeline and approval payload helpers', () => {
+    const timelineEntry = timelineEntrySchema.parse({
+      sequence: 2,
+      name: 'approval.resolved',
+      createdAt: new Date().toISOString(),
+      payload: {
+        approvalId: 'approval-1',
+        decision: 'approved',
+      },
+    });
+
+    expect(timelineEntry.name).toBe('approval.resolved');
+    expect(approvalDecisionSchema.parse('approved')).toBe('approved');
   });
 });
