@@ -33,6 +33,7 @@ export default async function ReviewQueuePage({
       reviewQueueItems={view.reviewQueue}
       activeStateFilter={activeStateFilter}
       activeWorkspaceFilter={activeWorkspaceFilter}
+      transport={view.transport}
     />
   );
 }

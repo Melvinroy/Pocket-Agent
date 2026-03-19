@@ -11,6 +11,7 @@ import {
   approvalDecisionSchema,
   createEventEnvelope,
   interruptRequestSchema,
+  reviewQueueItemSchema,
   steerRequestSchema,
   timelineEntrySchema,
   transportClientMessageSchema,
@@ -111,6 +112,7 @@ interface TransportConnection {
   connectionId: string;
   deviceId: string;
   threadIds: Set<string>;
+  reviewQueueSubscribed: boolean;
 }
 
 interface WorkspaceSummaryPayload {
@@ -133,6 +135,16 @@ interface ThreadSummaryPayload {
   latestEventName: string | null;
   pendingApprovals: number;
 }
+
+type ReviewQueuePayload = {
+  id: string;
+  workspaceId: string;
+  threadId: string;
+  title: string;
+  status: 'pending' | 'active' | 'recent';
+  summary: string;
+  updatedAt: string;
+};
 
 async function readJson<T>(request: IncomingMessage): Promise<T> {
   const chunks: Buffer[] = [];
@@ -301,6 +313,13 @@ function mapThreadStatus(
     return 'review';
   }
 
+  if (
+    latestEvent?.kind === 'thread.updated' &&
+    latestEvent.payload.reviewStarted === true
+  ) {
+    return 'review';
+  }
+
   if (thread.status === 'active' || latestEvent?.kind === 'turn.output') {
     return 'streaming';
   }
@@ -358,6 +377,72 @@ async function buildWorkspaceSummary(
     activeThreadId: threads[0]?.id ?? null,
     activeControllerDeviceId: lease?.deviceId ?? null,
   };
+}
+
+function mapReviewQueueItem(
+  workspaceId: string,
+  thread: ThreadSummaryPayload,
+): ReviewQueuePayload | null {
+  if (thread.pendingApprovals > 0) {
+    return reviewQueueItemSchema.parse({
+      id: `${thread.id}:pending-review`,
+      workspaceId,
+      threadId: thread.id,
+      title: `${thread.title} approval gate`,
+      status: 'pending',
+      summary: `${thread.pendingApprovals} host approval${thread.pendingApprovals === 1 ? '' : 's'} waiting before review can continue.`,
+      updatedAt: thread.updatedAt,
+    });
+  }
+
+  if (thread.status === 'review') {
+    return reviewQueueItemSchema.parse({
+      id: `${thread.id}:active-review`,
+      workspaceId,
+      threadId: thread.id,
+      title: `${thread.title} review`,
+      status: 'active',
+      summary: thread.latestEventSummary,
+      updatedAt: thread.updatedAt,
+    });
+  }
+
+  if (
+    thread.latestEventName === 'thread.updated' &&
+    thread.latestEventSummary.toLowerCase().includes('review')
+  ) {
+    return reviewQueueItemSchema.parse({
+      id: `${thread.id}:recent-review`,
+      workspaceId,
+      threadId: thread.id,
+      title: `${thread.title} recent review`,
+      status: 'recent',
+      summary: thread.latestEventSummary,
+      updatedAt: thread.updatedAt,
+    });
+  }
+
+  return null;
+}
+
+async function buildReviewQueueSnapshot(
+  sessionStore: SessionStore,
+): Promise<ReviewQueuePayload[]> {
+  const workspaces = await sessionStore.listWorkspaces();
+  const items = await Promise.all(
+    workspaces.map(async (workspace) => {
+      const threads = await sessionStore.listThreads(workspace.id);
+      const summaries = await Promise.all(
+        threads.map((thread) => buildThreadSummary(sessionStore, thread)),
+      );
+
+      return summaries
+        .map((thread) => mapReviewQueueItem(workspace.id, thread))
+        .filter((item): item is ReviewQueuePayload => item !== null);
+    }),
+  );
+
+  return items.flat();
 }
 
 async function getNextSequence(
@@ -499,6 +584,26 @@ export function createHostGateway(context: GatewayContext): HostGateway {
         socket.send(message);
       }
     }
+  };
+  const publishReviewQueueSnapshot = async () => {
+    const snapshot = await buildReviewQueueSnapshot(context.sessionStore);
+    const message = JSON.stringify({
+      type: 'reviews.snapshot',
+      items: snapshot,
+    });
+
+    for (const [socket, connection] of transportConnections.entries()) {
+      if (
+        socket.readyState === WebSocket.OPEN &&
+        connection.reviewQueueSubscribed
+      ) {
+        socket.send(message);
+      }
+    }
+  };
+  const publishLiveUpdates = (event: EventRecord) => {
+    publishThreadEvent(event);
+    void publishReviewQueueSnapshot();
   };
   const server = createServer(async (request, response) => {
     const { method = 'GET', url = '/' } = request;
@@ -873,8 +978,9 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
-        { onAppended: publishThreadEvent },
+        { onAppended: publishLiveUpdates },
       );
+      await publishReviewQueueSnapshot();
 
       await appendAudit(
         context.sessionStore,
@@ -929,7 +1035,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
-        { onAppended: publishThreadEvent },
+        { onAppended: publishLiveUpdates },
       );
 
       await appendAudit(
@@ -1004,7 +1110,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         resolvedAt,
-        { onAppended: publishThreadEvent },
+        { onAppended: publishLiveUpdates },
       );
 
       await appendAudit(
@@ -1182,7 +1288,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
-        { onAppended: publishThreadEvent },
+        { onAppended: publishLiveUpdates },
       );
 
       await appendAudit(
@@ -1279,7 +1385,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
-        { onAppended: publishThreadEvent },
+        { onAppended: publishLiveUpdates },
       );
 
       await appendAudit(
@@ -1354,7 +1460,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           },
         },
         createdAt,
-        { onAppended: publishThreadEvent },
+        { onAppended: publishLiveUpdates },
       );
 
       await appendAudit(
@@ -1391,6 +1497,22 @@ export function createHostGateway(context: GatewayContext): HostGateway {
         const connection = transportConnections.get(socket);
 
         if (!connection) {
+          return;
+        }
+
+        if (message.action === 'subscribe-reviews') {
+          connection.reviewQueueSubscribed = true;
+          socket.send(
+            JSON.stringify({
+              type: 'reviews.subscribed',
+            }),
+          );
+          socket.send(
+            JSON.stringify({
+              type: 'reviews.snapshot',
+              items: await buildReviewQueueSnapshot(context.sessionStore),
+            }),
+          );
           return;
         }
 
@@ -1450,6 +1572,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           connectionId,
           deviceId: authenticated.deviceId,
           threadIds: new Set<string>(),
+          reviewQueueSubscribed: false,
         });
         ws.send(
           JSON.stringify({

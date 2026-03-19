@@ -413,6 +413,51 @@ describe('host gateway', () => {
       socket.on('error', reject);
     });
 
+    const reviewSocket = new WebSocket(
+      `ws://127.0.0.1:${port}/api/ws?accessToken=${controller.accessToken}`,
+    );
+    cleanups.push(
+      () =>
+        new Promise<void>((cleanupResolve) => {
+          reviewSocket.once('close', () => cleanupResolve());
+          reviewSocket.close();
+        }),
+    );
+
+    let resolveReviewSubscribed: (() => void) | null = null;
+    const reviewSubscribed = new Promise<void>((resolve) => {
+      resolveReviewSubscribed = resolve;
+    });
+    const reviewSnapshots: Array<{
+      type: string;
+      items: Array<{ threadId: string; status: string }>;
+    }> = [];
+
+    reviewSocket.once('open', () => {
+      reviewSocket.send(
+        JSON.stringify({
+          action: 'subscribe-reviews',
+        }),
+      );
+    });
+    reviewSocket.on('message', (raw: RawData) => {
+      const payload = JSON.parse(raw.toString('utf8')) as
+        | { type: 'ready' | 'reviews.subscribed' }
+        | {
+            type: 'reviews.snapshot';
+            items: Array<{ threadId: string; status: string }>;
+          };
+
+      if (payload.type === 'reviews.subscribed') {
+        resolveReviewSubscribed?.();
+        resolveReviewSubscribed = null;
+      }
+
+      if (payload.type === 'reviews.snapshot') {
+        reviewSnapshots.push(payload);
+      }
+    });
+
     const viewerSteer = await fetch(
       `http://127.0.0.1:${port}/api/threads/thread-1/steer`,
       {
@@ -428,6 +473,7 @@ describe('host gateway', () => {
     expect(viewerSteer.status).toBe(403);
 
     await subscriptionReady;
+    await reviewSubscribed;
 
     const controllerSteer = await fetch(
       `http://127.0.0.1:${port}/api/threads/thread-1/steer`,
@@ -599,6 +645,23 @@ describe('host gateway', () => {
     expect(reviewResponse.status).toBe(202);
     expect(reviewPayload.event.kind).toBe('thread.updated');
     expect(reviewPayload.event.payload.reviewStarted).toBe(true);
+    let reviewSnapshotMatched = false;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      reviewSnapshotMatched =
+        reviewSnapshots
+          .at(-1)
+          ?.items.some(
+            (item) => item.threadId === 'thread-1' && item.status === 'active',
+          ) ?? false;
+
+      if (reviewSnapshotMatched) {
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    expect(reviewSnapshotMatched).toBe(true);
 
     const presetResponse = await fetch(
       `http://127.0.0.1:${port}/api/threads/thread-1/commands/preset`,

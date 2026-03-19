@@ -6,7 +6,10 @@ import {
   createEventEnvelope,
   createRequestEnvelope,
   decodeEnvelope,
+  reviewQueueItemSchema,
   timelineEntrySchema,
+  transportClientMessageSchema,
+  transportServerMessageSchema,
 } from '../src/index.js';
 
 describe('remote protocol', () => {
@@ -63,5 +66,30 @@ describe('remote protocol', () => {
 
     expect(timelineEntry.name).toBe('approval.resolved');
     expect(approvalDecisionSchema.parse('approved')).toBe('approved');
+  });
+
+  it('validates review websocket transport messages', () => {
+    expect(
+      transportClientMessageSchema.parse({
+        action: 'subscribe-reviews',
+      }).action,
+    ).toBe('subscribe-reviews');
+
+    const item = reviewQueueItemSchema.parse({
+      id: 'review-1',
+      workspaceId: 'workspace-1',
+      threadId: 'thread-1',
+      title: 'Review thread',
+      status: 'active',
+      summary: 'Review is active',
+      updatedAt: '2 min ago',
+    });
+
+    const serverMessage = transportServerMessageSchema.parse({
+      type: 'reviews.snapshot',
+      items: [item],
+    });
+
+    expect(serverMessage.type).toBe('reviews.snapshot');
   });
 });

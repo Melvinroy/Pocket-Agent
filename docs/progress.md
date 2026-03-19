@@ -141,3 +141,10 @@
 - Added state and workspace filters on `/reviews` with host-projected query-param navigation.
 - Added browser coverage for state-filtered review history rendering.
 - Promoted the repository version to `1.10.0` and added review filter milestone documentation.
+
+### Live review stream
+
+- Created the `codex/feat/live-review-stream` slice for websocket-backed review list updates.
+- Added typed review subscription messages to the transport contract and host gateway support for review snapshot broadcasts.
+- Added a live review queue client that updates `/reviews` counts and items without route refreshes.
+- Promoted the repository version to `1.11.0` and added live review stream milestone documentation.

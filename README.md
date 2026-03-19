@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.10.0` adds state and workspace filtering to the review history route. Review work can now be narrowed down without leaving the host-projected `/reviews` screen.
+Pocket Agent `1.11.0` adds live review-stream updates over websocket. The `/reviews` screen now stays in sync with host review activity instead of waiting for a route refresh.
 
 ## Principles
 
@@ -40,7 +40,7 @@ corepack pnpm --filter @pocket-agent/hostd dev -- --serve
 ```
 
 Set `POCKET_AGENT_HOST_URL` and `POCKET_AGENT_ACCESS_TOKEN` for the web app to use the live host transport instead of seeded shell data.
-The web shell can also start pairing directly from the home screen, persist the host session in cookies, surface a cross-workspace review queue plus dedicated review history route, filter review work by state or workspace, and send controller actions plus terminal preset runs from the thread screen once the device holds the active lease.
+The web shell can also start pairing directly from the home screen, persist the host session in cookies, surface a cross-workspace review queue plus dedicated review history route, filter review work by state or workspace, stream live review updates over websocket, and send controller actions plus terminal preset runs from the thread screen once the device holds the active lease.
 
 ## Compatibility
 

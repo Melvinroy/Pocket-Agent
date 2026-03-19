@@ -18,6 +18,7 @@ import type {
   TransportConfig,
 } from './live-data';
 import { LiveCommandConsole } from './live-command-console';
+import { LiveReviewQueue } from './live-review-queue';
 import { LiveTimeline } from './live-timeline';
 import { ThreadActions } from './thread-actions';
 import { ThreadPresets } from './thread-presets';
@@ -282,37 +283,14 @@ export function ReviewQueueScreen({
   reviewQueueItems = getReviewQueueItems(),
   activeStateFilter = 'all',
   activeWorkspaceFilter = 'all',
+  transport,
 }: {
   shell?: ShellStateView;
   reviewQueueItems?: ReviewQueueItem[];
   activeStateFilter?: 'all' | ReviewQueueItem['status'];
   activeWorkspaceFilter?: string;
+  transport?: TransportConfig;
 }) {
-  const workspaceOptions = Array.from(
-    new Set(reviewQueueItems.map((item) => item.workspaceId)),
-  ).map((workspaceId) => ({
-    workspaceId,
-    workspaceName: getWorkspace(workspaceId)?.name ?? workspaceId,
-  }));
-  const pendingCount = reviewQueueItems.filter(
-    (item) => item.status === 'pending',
-  ).length;
-  const activeCount = reviewQueueItems.filter(
-    (item) => item.status === 'active',
-  ).length;
-  const recentCount = reviewQueueItems.filter(
-    (item) => item.status === 'recent',
-  ).length;
-  const filteredItems = reviewQueueItems.filter((item) => {
-    const matchesState =
-      activeStateFilter === 'all' || item.status === activeStateFilter;
-    const matchesWorkspace =
-      activeWorkspaceFilter === 'all' ||
-      item.workspaceId === activeWorkspaceFilter;
-
-    return matchesState && matchesWorkspace;
-  });
-
   return (
     <PhoneShell
       eyebrow="Pocket Agent"
@@ -320,146 +298,18 @@ export function ReviewQueueScreen({
       description="Review work stays visible across workspaces, so the active controller can jump directly into blocked approvals, active review passes, and recent follow-ups."
       meta={<ShellMeta shell={shell} />}
     >
-      <SectionCard
-        title="Queue posture"
-        subtitle="The dashboard keeps review work separated by state without exposing raw host internals."
-      >
-        <StatGrid
-          items={[
-            {
-              label: 'Pending',
-              value: String(pendingCount),
-              hint: 'approval gates',
-            },
-            {
-              label: 'Active',
-              value: String(activeCount),
-              hint: 'reviewing now',
-            },
-            {
-              label: 'Recent',
-              value: String(recentCount),
-              hint: 'ready for follow-up',
-            },
-          ]}
-        />
-      </SectionCard>
-
-      <SectionCard
-        title="Review items"
-        subtitle="Open the right thread directly from the review queue."
-      >
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
-        >
-          <Link href="/reviews" style={{ textDecoration: 'none' }}>
-            <StatusPill
-              tone={activeStateFilter === 'all' ? 'warning' : 'neutral'}
-            >
-              all states
-            </StatusPill>
-          </Link>
-          <Link
-            href="/reviews?state=pending"
-            style={{ textDecoration: 'none' }}
-          >
-            <StatusPill
-              tone={activeStateFilter === 'pending' ? 'warning' : 'neutral'}
-            >
-              pending {pendingCount}
-            </StatusPill>
-          </Link>
-          <Link href="/reviews?state=active" style={{ textDecoration: 'none' }}>
-            <StatusPill
-              tone={activeStateFilter === 'active' ? 'success' : 'neutral'}
-            >
-              active {activeCount}
-            </StatusPill>
-          </Link>
-          <Link href="/reviews?state=recent" style={{ textDecoration: 'none' }}>
-            <StatusPill
-              tone={activeStateFilter === 'recent' ? 'success' : 'neutral'}
-            >
-              recent {recentCount}
-            </StatusPill>
-          </Link>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
-        >
-          <Link href="/reviews" style={{ textDecoration: 'none' }}>
-            <StatusPill
-              tone={activeWorkspaceFilter === 'all' ? 'success' : 'neutral'}
-            >
-              all workspaces
-            </StatusPill>
-          </Link>
-          {workspaceOptions.map((workspace) => (
-            <Link
-              key={workspace.workspaceId}
-              href={`/reviews?workspace=${encodeURIComponent(workspace.workspaceId)}`}
-              style={{ textDecoration: 'none' }}
-            >
-              <StatusPill
-                tone={
-                  activeWorkspaceFilter === workspace.workspaceId
-                    ? 'success'
-                    : 'neutral'
-                }
-              >
-                {workspace.workspaceName}
-              </StatusPill>
-            </Link>
-          ))}
-        </div>
-        {filteredItems.length > 0 ? (
-          <DetailList
-            items={filteredItems.map((reviewItem) => {
-              const workspace = getWorkspace(reviewItem.workspaceId);
-
-              return {
-                id: reviewItem.id,
-                title: (
-                  <Link
-                    href={`/workspaces/${reviewItem.workspaceId}/threads/${reviewItem.threadId}`}
-                    style={{ textDecoration: 'none' }}
-                  >
-                    {reviewItem.title}
-                  </Link>
-                ),
-                body: (
-                  <>
-                    <div>{reviewItem.summary}</div>
-                    <div>
-                      {workspace?.name ?? reviewItem.workspaceId} |{' '}
-                      {reviewItem.updatedAt}
-                    </div>
-                  </>
-                ),
-                badge: (
-                  <StatusPill tone={reviewTone(reviewItem.status)}>
-                    {reviewItem.status}
-                  </StatusPill>
-                ),
-              };
-            })}
-          />
-        ) : (
-          <StatusPill tone="neutral">
-            No review items match this filter
-          </StatusPill>
-        )}
-      </SectionCard>
+      <LiveReviewQueue
+        initialItems={reviewQueueItems}
+        activeStateFilter={activeStateFilter}
+        activeWorkspaceFilter={activeWorkspaceFilter}
+        transport={
+          transport ?? {
+            enabled: false,
+            websocketUrl: null,
+            accessToken: null,
+          }
+        }
+      />
     </PhoneShell>
   );
 }

@@ -49,6 +49,16 @@ export const timelineEntrySchema = z.object({
   payload: z.record(z.string(), z.unknown()),
 });
 
+export const reviewQueueItemSchema = z.object({
+  id: z.string().min(1),
+  workspaceId: z.string().min(1),
+  threadId: z.string().min(1),
+  title: z.string().min(1),
+  status: z.enum(['pending', 'active', 'recent']),
+  summary: z.string().min(1),
+  updatedAt: z.string().min(1),
+});
+
 export const approvalDecisionSchema = z.enum(['approved', 'rejected']);
 
 export const steerRequestSchema = z.object({
@@ -59,10 +69,15 @@ export const interruptRequestSchema = z.object({
   reason: z.string().min(1).optional(),
 });
 
-export const transportClientMessageSchema = z.object({
-  action: z.literal('subscribe'),
-  threadId: z.string().min(1),
-});
+export const transportClientMessageSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('subscribe'),
+    threadId: z.string().min(1),
+  }),
+  z.object({
+    action: z.literal('subscribe-reviews'),
+  }),
+]);
 
 export const transportServerMessageSchema = z.discriminatedUnion('type', [
   z.object({
@@ -77,6 +92,13 @@ export const transportServerMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('timeline.event'),
     threadId: z.string().min(1),
     entry: timelineEntrySchema,
+  }),
+  z.object({
+    type: z.literal('reviews.subscribed'),
+  }),
+  z.object({
+    type: z.literal('reviews.snapshot'),
+    items: z.array(reviewQueueItemSchema),
   }),
 ]);
 
@@ -116,6 +138,7 @@ export type CommandName = z.infer<typeof commandNameSchema>;
 export type EventName = z.infer<typeof eventNameSchema>;
 export type Capabilities = z.infer<typeof capabilitiesSchema>;
 export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
+export type ReviewQueueItem = z.infer<typeof reviewQueueItemSchema>;
 export type ApprovalDecision = z.infer<typeof approvalDecisionSchema>;
 export type TransportClientMessage = z.infer<
   typeof transportClientMessageSchema
