@@ -1,0 +1,20 @@
+{
+  "name": "@codex-remote/hostd",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+    "dev": "tsx watch src/index.ts",
+    "lint": "eslint src tests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@codex-remote/codex-bridge": "workspace:*",
+    "@codex-remote/remote-protocol": "workspace:*",
+    "@codex-remote/security": "workspace:*",
+    "@codex-remote/session-store": "workspace:*",
+    "@codex-remote/workspace-manager": "workspace:*",
+    "zod": "^3.24.2"
+  }
+}

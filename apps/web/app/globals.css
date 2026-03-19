@@ -1,0 +1,36 @@
+:root {
+  --background: #f2efe8;
+  --surface: rgba(255, 255, 255, 0.85);
+  --surface-border: rgba(25, 34, 28, 0.12);
+  --text: #182018;
+  --muted: #5d665d;
+  --accent: #0f766e;
+  --accent-strong: #134e4a;
+  --warning: #b45309;
+  --shadow: 0 24px 64px rgba(18, 31, 24, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(15, 118, 110, 0.18),
+      transparent 32%
+    ),
+    linear-gradient(180deg, #f7f4ed 0%, #ece7dd 100%);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+a {
+  color: inherit;
+}
