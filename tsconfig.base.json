@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@codex-remote/codex-bridge": ["packages/codex-bridge/src/index.ts"],
+      "@codex-remote/remote-protocol": [
+        "packages/remote-protocol/src/index.ts"
+      ],
+      "@codex-remote/security": ["packages/security/src/index.ts"],
+      "@codex-remote/session-store": ["packages/session-store/src/index.ts"],
+      "@codex-remote/ui": ["packages/ui/src/index.tsx"],
+      "@codex-remote/workspace-manager": [
+        "packages/workspace-manager/src/index.ts"
+      ]
+    }
+  }
+}

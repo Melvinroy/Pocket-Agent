@@ -1,0 +1,468 @@
+import React from 'react';
+import Link from 'next/link';
+
+import {
+  ActionStrip,
+  ComposerCard,
+  DetailList,
+  PhoneShell,
+  SectionCard,
+  StatGrid,
+  StatusPill,
+  TimelinePreview,
+} from '@codex-remote/ui';
+
+import {
+  getThread,
+  getThreadApprovals,
+  getThreadFiles,
+  getThreadTimeline,
+  getWorkspace,
+  getWorkspaceFiles,
+  getWorkspaceThreads,
+  shellState,
+  threads,
+  workspaces,
+} from './mock-data';
+
+function workspaceTone(status: string) {
+  if (status === 'active') {
+    return 'success';
+  }
+
+  if (status === 'reconnecting') {
+    return 'warning';
+  }
+
+  return 'neutral';
+}
+
+function threadTone(status: string) {
+  if (status === 'streaming') {
+    return 'success';
+  }
+
+  if (status === 'review') {
+    return 'warning';
+  }
+
+  return 'neutral';
+}
+
+function approvalTone(status: string) {
+  if (status === 'approved') {
+    return 'success';
+  }
+
+  if (status === 'rejected') {
+    return 'danger';
+  }
+
+  return 'warning';
+}
+
+function ShellMeta() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 8,
+        flexWrap: 'wrap',
+        justifyContent: 'flex-end',
+      }}
+    >
+      <StatusPill tone="success">{shellState.connection}</StatusPill>
+      <StatusPill tone="neutral">{shellState.role}</StatusPill>
+    </div>
+  );
+}
+
+export function HomeScreen() {
+  const featuredThread = threads[0];
+
+  return (
+    <PhoneShell
+      eyebrow="Pocket Agent"
+      title="Host-controlled coding from the phone"
+      description="Continue active Codex sessions from mobile or web while the desktop host keeps the repository, credentials, execution, and policy boundary."
+      meta={<ShellMeta />}
+    >
+      <SectionCard
+        title="Remote posture"
+        subtitle="One controller holds the lease, viewers stay read-only, and every action routes through the host gateway."
+      >
+        <StatGrid
+          items={[
+            {
+              label: 'Connection',
+              value: shellState.connection,
+              hint: shellState.reconnectLabel,
+            },
+            {
+              label: 'Workspaces',
+              value: String(workspaces.length),
+              hint: 'host-known repos',
+            },
+            {
+              label: 'Active role',
+              value: shellState.role,
+              hint: shellState.deviceName,
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Workspaces"
+        subtitle="Jump into a bound repository, inspect its lease state, and continue the active thread."
+        action={<StatusPill tone="neutral">PWA shell</StatusPill>}
+      >
+        <DetailList
+          items={workspaces.map((workspace) => ({
+            id: workspace.id,
+            title: (
+              <Link
+                href={`/workspaces/${workspace.id}`}
+                style={{ textDecoration: 'none' }}
+              >
+                {workspace.name}
+              </Link>
+            ),
+            body: (
+              <>
+                <div>{workspace.repo}</div>
+                <div>
+                  {workspace.branch} | {workspace.presence}
+                </div>
+                {workspace.warning ? <div>{workspace.warning}</div> : null}
+              </>
+            ),
+            badge: (
+              <StatusPill tone={workspaceTone(workspace.status)}>
+                {workspace.status}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Featured thread"
+        subtitle="Phase 4 centers on thread detail, composer state, reconnect handling, and presence cues."
+      >
+        <TimelinePreview
+          items={[
+            {
+              id: featuredThread.id,
+              title: featuredThread.title,
+              status: featuredThread.status,
+              summary: featuredThread.summary,
+              meta: `${featuredThread.updatedAt} | ${featuredThread.planState}`,
+            },
+          ]}
+        />
+        <div style={{ marginTop: 12 }}>
+          <Link
+            href={`/workspaces/${featuredThread.workspaceId}/threads/${featuredThread.id}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 46,
+              padding: '0 18px',
+              borderRadius: 999,
+              background: '#142b28',
+              color: '#f6f2e8',
+              fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            Open active thread
+          </Link>
+        </div>
+      </SectionCard>
+    </PhoneShell>
+  );
+}
+
+export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
+  const workspace = getWorkspace(workspaceId);
+
+  if (!workspace) {
+    return (
+      <PhoneShell
+        eyebrow="Pocket Agent"
+        title="Workspace missing"
+        description="The selected workspace is not available in the local shell seed data."
+        meta={<ShellMeta />}
+      >
+        <SectionCard
+          title="Return home"
+          subtitle="The host still remains authoritative even when the client route is stale."
+        >
+          <Link href="/" style={{ fontWeight: 700 }}>
+            Back to dashboard
+          </Link>
+        </SectionCard>
+      </PhoneShell>
+    );
+  }
+
+  const workspaceThreads = getWorkspaceThreads(workspace.id);
+  const workspaceFiles = getWorkspaceFiles(workspace.id);
+
+  return (
+    <PhoneShell
+      eyebrow={workspace.name}
+      title={workspace.repo}
+      description="Workspace detail shows branch, controller, thread list, and safe next actions without granting direct filesystem access."
+      meta={<ShellMeta />}
+    >
+      <SectionCard
+        title="Lease state"
+        subtitle="The client reflects the host controller lease and reconnect posture."
+      >
+        <StatGrid
+          items={[
+            { label: 'Branch', value: workspace.branch, hint: 'host worktree' },
+            {
+              label: 'Threads',
+              value: String(workspace.threads),
+              hint: workspace.presence,
+            },
+            {
+              label: 'Controller',
+              value: workspace.controller,
+              hint: 'single active controller',
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Next actions"
+        subtitle="Guide the active device back into the right coding surface."
+      >
+        <ActionStrip
+          items={[
+            {
+              label: 'Resume last thread',
+              hint: workspaceThreads[0]?.title ?? 'No threads yet',
+              tone: 'accent',
+            },
+            {
+              label: 'Reconnect host',
+              hint: workspace.warning ?? 'Heartbeat healthy',
+              tone: 'muted',
+            },
+            {
+              label: 'Review controller lease',
+              hint: workspace.controller,
+              tone: 'muted',
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Threads"
+        subtitle="The workspace shell exposes resumable thread state with plan context and last activity."
+      >
+        <DetailList
+          items={workspaceThreads.map((thread) => ({
+            id: thread.id,
+            title: (
+              <Link
+                href={`/workspaces/${workspace.id}/threads/${thread.id}`}
+                style={{ textDecoration: 'none' }}
+              >
+                {thread.title}
+              </Link>
+            ),
+            body: (
+              <>
+                <div>{thread.summary}</div>
+                <div>
+                  {thread.turnCount} turns | {thread.updatedAt}
+                </div>
+              </>
+            ),
+            badge: (
+              <StatusPill tone={threadTone(thread.status)}>
+                {thread.status}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Changed files"
+        subtitle="Open diff-linked files without giving the client direct filesystem access."
+      >
+        <DetailList
+          items={workspaceFiles.map((file) => ({
+            id: file.id,
+            title: file.path,
+            body: file.summary,
+            badge: (
+              <StatusPill tone={file.status === 'new' ? 'success' : 'neutral'}>
+                {file.status}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
+    </PhoneShell>
+  );
+}
+
+export function ThreadScreen({
+  workspaceId,
+  threadId,
+}: {
+  workspaceId: string;
+  threadId: string;
+}) {
+  const workspace = getWorkspace(workspaceId);
+  const thread = getThread(threadId);
+  const timeline = getThreadTimeline(threadId);
+  const approvals = getThreadApprovals(threadId);
+  const changedFiles = getThreadFiles(threadId);
+
+  if (!workspace || !thread) {
+    return (
+      <PhoneShell
+        eyebrow="Pocket Agent"
+        title="Thread missing"
+        description="The requested thread could not be resolved from the host-backed route snapshot."
+        meta={<ShellMeta />}
+      >
+        <SectionCard
+          title="Recover"
+          subtitle="Navigate back to a known workspace and rejoin from the host projection."
+        >
+          <Link href="/" style={{ fontWeight: 700 }}>
+            Back to dashboard
+          </Link>
+        </SectionCard>
+      </PhoneShell>
+    );
+  }
+
+  return (
+    <PhoneShell
+      eyebrow={workspace.name}
+      title={thread.title}
+      description="Thread detail combines presence, reconnect state, timeline context, and a host-routed composer surface for the active controller."
+      meta={<ShellMeta />}
+    >
+      <SectionCard
+        title="Session state"
+        subtitle="This view is optimized for phone control without bypassing host policy."
+      >
+        <StatGrid
+          items={[
+            { label: 'Status', value: thread.status, hint: thread.updatedAt },
+            {
+              label: 'Turns',
+              value: String(thread.turnCount),
+              hint: 'stream + replay aware',
+            },
+            {
+              label: 'Presence',
+              value: workspace.presence,
+              hint: shellState.deviceName,
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Timeline"
+        subtitle="Plan and transport state preview the live timeline phase without exposing raw host internals."
+        action={<StatusPill tone="warning">reconnect aware</StatusPill>}
+      >
+        <TimelinePreview items={timeline} />
+      </SectionCard>
+
+      <SectionCard
+        title="Controller actions"
+        subtitle="Steer, interrupt, and approval handling stay controller-gated on the host."
+      >
+        <ActionStrip
+          items={[
+            {
+              label: 'Steer next turn',
+              hint: 'Queue a new plan update for the active thread',
+              tone: 'accent',
+            },
+            {
+              label: 'Interrupt safely',
+              hint: 'Stop host execution and preserve replayable state',
+              tone: 'muted',
+            },
+            {
+              label: 'Review approval queue',
+              hint: approvals[0]?.title ?? 'No approvals pending',
+              tone: 'muted',
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Approvals"
+        subtitle="Approval sheets give the controller enough context to decide without exposing host secrets."
+      >
+        <DetailList
+          items={approvals.map((approval) => ({
+            id: approval.id,
+            title: approval.title,
+            body: approval.summary,
+            badge: (
+              <StatusPill tone={approvalTone(approval.status)}>
+                {approval.status}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Files and review"
+        subtitle="Open changed files from the diff, make a light edit, and start a host-side review pass."
+      >
+        <DetailList
+          items={changedFiles.map((file) => ({
+            id: file.id,
+            title: file.path,
+            body: file.summary,
+            badge: (
+              <StatusPill tone={file.status === 'new' ? 'success' : 'neutral'}>
+                {file.status}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Composer"
+        subtitle="The controller composes instructions here; the host decides whether the action runs, waits for approval, or is rejected by policy."
+      >
+        <ComposerCard
+          title="Send a steer or continue prompt"
+          placeholder="Ask Codex to continue the current milestone, explain a diff, or interrupt safely. This is a routed shell preview, not a direct App Server connection."
+          footer={
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <StatusPill tone="success">controller active</StatusPill>
+              <StatusPill tone="neutral">host-routed</StatusPill>
+              <StatusPill tone="warning">approvals on request</StatusPill>
+            </div>
+          }
+        />
+      </SectionCard>
+    </PhoneShell>
+  );
+}
