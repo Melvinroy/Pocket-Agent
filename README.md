@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.6.0` adds a host-routed file editor to the web shell. Changed files now open into a dedicated workspace file page, controllers can save edits back through the host gateway, and viewers still stay read-only behind the same policy boundary.
+Pocket Agent `1.7.0` adds a review launch flow to the web editor. After opening and editing a changed file, the active controller can now kick off a host review directly from the file page without returning to the thread shell.
 
 ## Principles
 

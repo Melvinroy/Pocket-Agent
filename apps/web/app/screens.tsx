@@ -359,7 +359,7 @@ export function WorkspaceScreen({
             id: file.id,
             title: (
               <Link
-                href={`/workspaces/${workspace.id}/file?path=${encodeURIComponent(file.path)}`}
+                href={`/workspaces/${workspace.id}/file?path=${encodeURIComponent(file.path)}&threadId=${encodeURIComponent(file.threadId)}`}
                 style={{ textDecoration: 'none' }}
               >
                 {file.path}
@@ -533,7 +533,7 @@ export function ThreadScreen({
             id: file.id,
             title: (
               <Link
-                href={`/workspaces/${workspace.id}/file?path=${encodeURIComponent(file.path)}`}
+                href={`/workspaces/${workspace.id}/file?path=${encodeURIComponent(file.path)}&threadId=${encodeURIComponent(threadId)}`}
                 style={{ textDecoration: 'none' }}
               >
                 {file.path}

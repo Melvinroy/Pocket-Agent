@@ -5,16 +5,17 @@ import { PhoneShell, SectionCard } from '@pocket-agent/ui';
 
 import { FileEditor } from '../../../file-editor';
 import { getWorkspaceFileView } from '../../../live-data';
+import { ReviewLauncher } from '../../../review-launcher';
 
 export default async function WorkspaceFilePage({
   params,
   searchParams,
 }: {
   params: Promise<{ workspaceId: string }>;
-  searchParams: Promise<{ path?: string }>;
+  searchParams: Promise<{ path?: string; threadId?: string }>;
 }) {
   const { workspaceId } = await params;
-  const { path } = await searchParams;
+  const { path, threadId } = await searchParams;
 
   if (!path) {
     return (
@@ -54,6 +55,18 @@ export default async function WorkspaceFilePage({
           editable={view.transport.enabled && view.shell.role === 'controller'}
         />
       </SectionCard>
+      {threadId ? (
+        <SectionCard
+          title="Review"
+          subtitle="Start a host review for this file without leaving the editor."
+        >
+          <ReviewLauncher
+            threadId={threadId}
+            path={view.file.path}
+            enabled={view.transport.enabled && view.shell.role === 'controller'}
+          />
+        </SectionCard>
+      ) : null}
     </PhoneShell>
   );
 }

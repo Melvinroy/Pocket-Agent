@@ -113,3 +113,10 @@
 - Added a host-routed file page, local proxy route for file read and save, and changed-file links from workspace and thread views.
 - Added browser coverage for controller-gated file editing through the host boundary.
 - Promoted the repository version to `1.6.0` and added file editor milestone documentation.
+
+### Web review flow
+
+- Created the `codex/feat/web-review-flow` slice for editor-driven review starts from the web shell.
+- Added a local proxy route for thread review start and a review launcher on the workspace file page when a thread context is present.
+- Added browser coverage for controller-gated host review start from the web editor.
+- Promoted the repository version to `1.7.0` and added review flow milestone documentation.
