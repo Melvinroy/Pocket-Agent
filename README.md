@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.13.0` adds transport resilience for the live web shell. The host now emits websocket heartbeats, the browser detects stale or reconnecting links, and the main screens expose manual reconnect plus operator-visible transport health.
+Pocket Agent `1.14.0` fixes the first real dogfood regressions in the live web shell. The shared hero layout now renders correctly on the dashboard, and pairing conflicts surface actionable controller-lease guidance instead of a raw host error.
 
 ## Principles
 

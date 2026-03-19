@@ -16,8 +16,13 @@ describe('ui package', () => {
       </PhoneShell>,
     );
 
-    expect(screen.getByText('Title')).toBeTruthy();
+    const title = screen.getByRole('heading', { name: 'Title' });
+    const description = screen.getByText('Desc');
+
+    expect(title).toBeTruthy();
     expect(screen.getByText('Body')).toBeTruthy();
+    expect(title.getAttribute('style')).toContain('max-width: 10ch');
+    expect(description.getAttribute('style')).toContain('max-width: 30ch');
   });
 
   it('renders timeline rows and stat blocks', () => {

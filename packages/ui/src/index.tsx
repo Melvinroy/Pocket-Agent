@@ -106,7 +106,7 @@ export function PhoneShell({
                   margin: 0,
                   fontSize: 'clamp(2.2rem, 9vw, 3.6rem)',
                   lineHeight: 0.96,
-                  maxWidth: 10,
+                  maxWidth: '10ch',
                 }}
               >
                 {title}
@@ -117,7 +117,7 @@ export function PhoneShell({
                   color: '#5f615d',
                   fontSize: 16,
                   lineHeight: 1.6,
-                  maxWidth: 30,
+                  maxWidth: '30ch',
                 }}
               >
                 {description}

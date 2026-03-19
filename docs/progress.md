@@ -171,3 +171,12 @@
 - Added host, protocol, and browser coverage for heartbeat and reconnect behavior.
 - Updated operator docs with websocket troubleshooting guidance.
 - Promoted the repository version to `1.13.0` and added transport resilience milestone documentation.
+
+### E2E dogfood
+
+- Created the `codex/feat/e2e-dogfood` slice for the first real local-host web shell dogfood pass.
+- Exercised the real Next.js pairing routes and host-backed page rendering against a live local host daemon.
+- Fixed a shared `PhoneShell` layout regression that rendered the dashboard hero with unusably narrow text columns.
+- Improved Connect Panel conflict handling so active-controller lease failures surface actionable recovery guidance.
+- Added regression coverage for the layout and pairing conflict bugs discovered during the dogfood pass.
+- Promoted the repository version to `1.14.0` and added dogfood milestone documentation.

@@ -11,6 +11,18 @@ interface PairingPayload {
   };
 }
 
+function formatPairingError(error: string | null | undefined) {
+  if (!error) {
+    return 'Unable to complete pairing';
+  }
+
+  if (error.includes('active lease')) {
+    return 'Another controller is already paired. Disconnect that device or revoke its token before retrying.';
+  }
+
+  return error;
+}
+
 export function ConnectPanel({ connected }: { connected: boolean }) {
   const [hostUrl, setHostUrl] = useState('http://127.0.0.1:43110');
   const [displayName, setDisplayName] = useState('Pocket Agent Web');
@@ -38,9 +50,11 @@ export function ConnectPanel({ connected }: { connected: boolean }) {
       if (!response.ok || !('pairingSession' in payload)) {
         setPairing(null);
         setError(
-          'error' in payload
-            ? (payload.error ?? 'Unable to start pairing')
-            : 'Unable to start pairing',
+          formatPairingError(
+            'error' in payload
+              ? (payload.error ?? 'Unable to start pairing')
+              : 'Unable to start pairing',
+          ),
         );
         return;
       }
@@ -71,7 +85,9 @@ export function ConnectPanel({ connected }: { connected: boolean }) {
       const payload = (await response.json()) as { error?: string };
 
       if (!response.ok) {
-        setError(payload.error ?? 'Unable to confirm pairing');
+        setError(
+          formatPairingError(payload.error ?? 'Unable to confirm pairing'),
+        );
         return;
       }
 

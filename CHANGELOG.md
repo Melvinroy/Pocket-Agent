@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-03-20
+
+### Fixed
+
+- Corrected the shared phone-shell hero widths so the home dashboard no longer collapses title and description text into unusably narrow columns.
+- Improved web pairing conflict feedback when another controller already holds the active host lease.
+- Added regression coverage for the phone-shell layout and controller-lease conflict copy discovered during dogfooding.
+
 ## [1.13.0] - 2026-03-19
 
 ### Added
