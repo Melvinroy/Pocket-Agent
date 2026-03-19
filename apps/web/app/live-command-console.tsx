@@ -7,6 +7,7 @@ import { StatusPill } from '@pocket-agent/ui';
 
 import { subscribeToHostTransport } from './host-transport';
 import type { CommandLogView, TransportConfig } from './live-data';
+import { useHostTransportStatus } from './use-host-transport-status';
 
 interface LiveCommandConsoleProps {
   threadId: string;
@@ -58,6 +59,7 @@ export function LiveCommandConsole({
   transport,
 }: LiveCommandConsoleProps) {
   const [logs, setLogs] = useState(initialLogs);
+  const { status } = useHostTransportStatus(transport);
 
   useEffect(() => {
     if (
@@ -114,14 +116,26 @@ export function LiveCommandConsole({
 
   if (logs.length === 0) {
     return (
-      <div style={{ fontSize: 13, color: '#6a746f' }}>
-        No host command output has been captured for this thread yet.
+      <div style={{ display: 'grid', gap: 8 }}>
+        {status.state !== 'live' ? (
+          <StatusPill tone={status.state === 'stale' ? 'warning' : 'neutral'}>
+            transport {status.state}
+          </StatusPill>
+        ) : null}
+        <div style={{ fontSize: 13, color: '#6a746f' }}>
+          No host command output has been captured for this thread yet.
+        </div>
       </div>
     );
   }
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
+      {status.state !== 'live' ? (
+        <div style={{ fontSize: 13, color: '#9a6a17' }}>
+          Command output may lag while the host transport is {status.state}.
+        </div>
+      ) : null}
       {logs.map((log) => (
         <div
           key={log.id}

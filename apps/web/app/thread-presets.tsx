@@ -6,12 +6,15 @@ import { useRouter } from 'next/navigation';
 
 import { StatusPill } from '@pocket-agent/ui';
 
+import type { TransportConfig } from './live-data';
 import type { TerminalPresetSummary } from './mock-data';
+import { useHostTransportStatus } from './use-host-transport-status';
 
 interface ThreadPresetsProps {
   threadId: string;
   presets: TerminalPresetSummary[];
   enabled: boolean;
+  transport: TransportConfig;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
@@ -39,17 +42,20 @@ export function ThreadPresets({
   threadId,
   presets,
   enabled,
+  transport,
 }: ThreadPresetsProps) {
   const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingPreset, setPendingPreset] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { status: transportStatus } = useHostTransportStatus(transport);
+  const transportReady = !transport.enabled || transportStatus.state === 'live';
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       {presets.map((preset) => {
-        const disabled = !enabled || isPending;
+        const disabled = !enabled || !transportReady || isPending;
         const running = pendingPreset === preset.preset && isPending;
 
         return (
@@ -142,6 +148,12 @@ export function ThreadPresets({
       {!enabled ? (
         <div style={{ fontSize: 13, color: '#6a746f' }}>
           Pair as the active controller to run host terminal presets.
+        </div>
+      ) : null}
+      {enabled && !transportReady ? (
+        <div style={{ fontSize: 13, color: '#9a6a17' }}>
+          Host transport is {transportStatus.state}; presets stay disabled until
+          the live connection is healthy.
         </div>
       ) : null}
       {status ? (

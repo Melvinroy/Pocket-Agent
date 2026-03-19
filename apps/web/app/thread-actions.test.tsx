@@ -28,9 +28,20 @@ describe('ThreadActions', () => {
     cleanup();
   });
 
+  const seededTransport = {
+    enabled: false,
+    websocketUrl: null,
+    accessToken: null,
+  } as const;
+
   it('disables controller actions when the session is not controller-enabled', () => {
     render(
-      <ThreadActions threadId="thread-1" approvals={[]} enabled={false} />,
+      <ThreadActions
+        threadId="thread-1"
+        approvals={[]}
+        enabled={false}
+        transport={seededTransport}
+      />,
     );
 
     expect(
@@ -64,7 +75,14 @@ describe('ThreadActions', () => {
       }),
     );
 
-    render(<ThreadActions threadId="thread-1" approvals={[]} enabled />);
+    render(
+      <ThreadActions
+        threadId="thread-1"
+        approvals={[]}
+        enabled
+        transport={seededTransport}
+      />,
+    );
 
     fireEvent.change(screen.getByLabelText('Steer the next turn'), {
       target: {
@@ -113,6 +131,7 @@ describe('ThreadActions', () => {
           },
         ]}
         enabled
+        transport={seededTransport}
       />,
     );
 

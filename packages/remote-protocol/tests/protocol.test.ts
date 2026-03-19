@@ -92,4 +92,13 @@ describe('remote protocol', () => {
 
     expect(serverMessage.type).toBe('reviews.snapshot');
   });
+
+  it('validates heartbeat websocket transport messages', () => {
+    const heartbeat = transportServerMessageSchema.parse({
+      type: 'heartbeat',
+      sentAt: new Date().toISOString(),
+    });
+
+    expect(heartbeat.type).toBe('heartbeat');
+  });
 });

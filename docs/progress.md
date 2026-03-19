@@ -155,3 +155,19 @@
 - Added a shared web host transport client that multiplexes one websocket connection across thread timeline, command output, and review queue subscriptions.
 - Added browser coverage to prove timeline and command console views share the same socket subscription for a thread.
 - Promoted the repository version to `1.12.0` and added shared live transport milestone documentation.
+
+### Transport resilience
+
+- Created the `codex/feat/transport-resilience` slice for live transport recovery and operator visibility.
+- Added host heartbeat messages so browser clients can distinguish healthy live transport from silent-but-open sockets.
+- Added shared transport reconnect and resubscribe logic with backoff after websocket loss.
+- Added stale-link detection when the browser stops receiving heartbeat or timeline traffic.
+- Added a reusable live transport status panel with manual reconnect controls.
+- Added host-health visibility on the home route so operators can see whether the browser is live, reconnecting, or stale.
+- Added explicit transport status on review and thread routes so live views explain recovery instead of quietly freezing.
+- Gated controller actions behind live transport health instead of only route-time pairing state.
+- Gated terminal presets behind live transport health to avoid queueing commands into a broken session.
+- Added command-console transport warnings so operators know when output may lag behind host execution.
+- Added host, protocol, and browser coverage for heartbeat and reconnect behavior.
+- Updated operator docs with websocket troubleshooting guidance.
+- Promoted the repository version to `1.13.0` and added transport resilience milestone documentation.

@@ -3,18 +3,21 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { LiveCommandConsole } from './live-command-console';
+import { LiveTransportStatus } from './live-transport-status';
 import { resetHostTransportForTests } from './host-transport';
 import { LiveTimeline } from './live-timeline';
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
+  static CLOSED = 3;
+  static CONNECTING = 0;
   static OPEN = 1;
 
   private readonly listeners = new Map<
     string,
     Array<(event: { data?: string }) => void>
   >();
-  readyState = 0;
+  readyState = MockWebSocket.CONNECTING;
 
   constructor(public readonly url: string | URL) {
     MockWebSocket.instances.push(this);
@@ -27,7 +30,10 @@ class MockWebSocket {
   }
 
   send = vi.fn();
-  close = vi.fn();
+  close = vi.fn(() => {
+    this.readyState = MockWebSocket.CLOSED;
+    this.emit('close', {});
+  });
 
   emit(type: string, event: { data?: string }) {
     if (type === 'open') {
@@ -109,6 +115,60 @@ describe('host transport sharing', () => {
     await waitFor(() => {
       expect(screen.getAllByText('turn.output')).toHaveLength(2);
       expect(screen.getByText('test | exit 0')).toBeTruthy();
+    });
+  });
+
+  it('reconnects and replays subscriptions after the socket closes', async () => {
+    vi.stubGlobal('WebSocket', MockWebSocket);
+
+    render(
+      <>
+        <LiveTransportStatus
+          transport={{
+            enabled: true,
+            websocketUrl: 'ws://127.0.0.1:9000/api/ws',
+            accessToken: 'token-1',
+          }}
+        />
+        <LiveTimeline
+          threadId="thread-1"
+          initialItems={[]}
+          transport={{
+            enabled: true,
+            websocketUrl: 'ws://127.0.0.1:9000/api/ws',
+            accessToken: 'token-1',
+          }}
+        />
+      </>,
+    );
+
+    MockWebSocket.instances[0]?.emit('open', {});
+    expect(MockWebSocket.instances[0]?.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        action: 'subscribe',
+        threadId: 'thread-1',
+      }),
+    );
+
+    MockWebSocket.instances[0]?.emit('close', {});
+
+    await waitFor(() => {
+      expect(screen.getByText('reconnecting')).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(MockWebSocket.instances).toHaveLength(2);
+    });
+
+    MockWebSocket.instances[1]?.emit('open', {});
+
+    await waitFor(() => {
+      expect(MockWebSocket.instances[1]?.send).toHaveBeenCalledWith(
+        JSON.stringify({
+          action: 'subscribe',
+          threadId: 'thread-1',
+        }),
+      );
     });
   });
 });

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { z } from 'zod';
 
-export const PROTOCOL_VERSION = '0.2.0';
+export const PROTOCOL_VERSION = '0.3.0';
 
 export const capabilitiesSchema = z.object({
   supportsApprovals: z.boolean(),
@@ -83,6 +83,10 @@ export const transportServerMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('ready'),
     connectionId: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('heartbeat'),
+    sentAt: z.string().datetime(),
   }),
   z.object({
     type: z.literal('subscribed'),

@@ -19,6 +19,7 @@ import type {
 } from './live-data';
 import { LiveCommandConsole } from './live-command-console';
 import { LiveReviewQueue } from './live-review-queue';
+import { LiveTransportStatus } from './live-transport-status';
 import { LiveTimeline } from './live-timeline';
 import { ThreadActions } from './thread-actions';
 import { ThreadPresets } from './thread-presets';
@@ -118,12 +119,14 @@ export function HomeScreen({
   featuredThread = threads[0] ?? null,
   reviewQueueItems = getReviewQueueItems(),
   connectPanel,
+  transport,
 }: {
   shell?: ShellStateView;
   workspaceItems?: WorkspaceSummary[];
   featuredThread?: ThreadSummary | null;
   reviewQueueItems?: ReviewQueueItem[];
   connectPanel?: React.ReactNode;
+  transport?: TransportConfig;
 }) {
   return (
     <PhoneShell
@@ -158,6 +161,21 @@ export function HomeScreen({
         {connectPanel ? (
           <div style={{ marginTop: 16 }}>{connectPanel}</div>
         ) : null}
+      </SectionCard>
+
+      <SectionCard
+        title="Host health"
+        subtitle="The web shell now exposes transport state directly instead of inferring connection health from stale route data."
+      >
+        <LiveTransportStatus
+          transport={
+            transport ?? {
+              enabled: false,
+              websocketUrl: null,
+              accessToken: null,
+            }
+          }
+        />
       </SectionCard>
 
       <SectionCard
@@ -298,6 +316,21 @@ export function ReviewQueueScreen({
       description="Review work stays visible across workspaces, so the active controller can jump directly into blocked approvals, active review passes, and recent follow-ups."
       meta={<ShellMeta shell={shell} />}
     >
+      <SectionCard
+        title="Transport status"
+        subtitle="Review queue updates stream over the shared host websocket and recover automatically after link loss."
+      >
+        <LiveTransportStatus
+          transport={
+            transport ?? {
+              enabled: false,
+              websocketUrl: null,
+              accessToken: null,
+            }
+          }
+        />
+      </SectionCard>
+
       <LiveReviewQueue
         initialItems={reviewQueueItems}
         activeStateFilter={activeStateFilter}
@@ -574,6 +607,18 @@ export function ThreadScreen({
         subtitle="Plan and transport state preview the live timeline phase without exposing raw host internals."
         action={<StatusPill tone="warning">reconnect aware</StatusPill>}
       >
+        <div style={{ marginBottom: 12 }}>
+          <LiveTransportStatus
+            compact
+            transport={
+              transport ?? {
+                enabled: false,
+                websocketUrl: null,
+                accessToken: null,
+              }
+            }
+          />
+        </div>
         <LiveTimeline
           threadId={threadId}
           initialItems={timeline}
@@ -594,7 +639,14 @@ export function ThreadScreen({
         <ThreadActions
           threadId={threadId}
           approvals={approvals}
-          enabled={transport?.enabled === true && shell.role === 'controller'}
+          enabled={shell.role === 'controller'}
+          transport={
+            transport ?? {
+              enabled: false,
+              websocketUrl: null,
+              accessToken: null,
+            }
+          }
         />
       </SectionCard>
 
@@ -665,7 +717,14 @@ export function ThreadScreen({
         <ThreadPresets
           threadId={threadId}
           presets={presets}
-          enabled={transport?.enabled === true && shell.role === 'controller'}
+          enabled={shell.role === 'controller'}
+          transport={
+            transport ?? {
+              enabled: false,
+              websocketUrl: null,
+              accessToken: null,
+            }
+          }
         />
       </SectionCard>
 

@@ -14,6 +14,7 @@ export default async function HomePage() {
       featuredThread={view.featuredThread}
       reviewQueueItems={view.reviewQueue}
       connectPanel={<ConnectPanel connected={view.transport.enabled} />}
+      transport={view.transport}
     />
   );
 }

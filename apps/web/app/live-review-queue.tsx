@@ -14,6 +14,7 @@ import {
 import { subscribeToHostTransport } from './host-transport';
 import type { TransportConfig } from './live-data';
 import { getWorkspace, type ReviewQueueItem } from './mock-data';
+import { useHostTransportStatus } from './use-host-transport-status';
 
 interface LiveReviewQueueProps {
   initialItems: ReviewQueueItem[];
@@ -41,6 +42,7 @@ export function LiveReviewQueue({
   transport,
 }: LiveReviewQueueProps) {
   const [items, setItems] = useState(initialItems);
+  const { status } = useHostTransportStatus(transport);
 
   useEffect(() => {
     if (
@@ -93,6 +95,17 @@ export function LiveReviewQueue({
 
   return (
     <>
+      {status.state !== 'live' && transport.enabled ? (
+        <SectionCard
+          title="Queue transport"
+          subtitle="Review data keeps streaming over the shared host link; this banner shows when the queue is recovering."
+        >
+          <StatusPill tone={status.state === 'stale' ? 'warning' : 'neutral'}>
+            {status.state}
+          </StatusPill>
+        </SectionCard>
+      ) : null}
+
       <SectionCard
         title="Queue posture"
         subtitle="The dashboard keeps review work separated by state without exposing raw host internals."

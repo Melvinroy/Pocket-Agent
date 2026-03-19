@@ -28,6 +28,12 @@ describe('ThreadPresets', () => {
     cleanup();
   });
 
+  const seededTransport = {
+    enabled: false,
+    websocketUrl: null,
+    accessToken: null,
+  } as const;
+
   it('disables preset actions when the device is not the active controller', () => {
     render(
       <ThreadPresets
@@ -42,6 +48,7 @@ describe('ThreadPresets', () => {
             status: 'ready',
           },
         ]}
+        transport={seededTransport}
       />,
     );
 
@@ -79,6 +86,7 @@ describe('ThreadPresets', () => {
             status: 'ready',
           },
         ]}
+        transport={seededTransport}
       />,
     );
 

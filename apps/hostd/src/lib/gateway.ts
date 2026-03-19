@@ -111,6 +111,7 @@ export interface HostGateway {
 interface TransportConnection {
   connectionId: string;
   deviceId: string;
+  heartbeatInterval: ReturnType<typeof setInterval> | null;
   threadIds: Set<string>;
   reviewQueueSubscribed: boolean;
 }
@@ -145,6 +146,8 @@ type ReviewQueuePayload = {
   summary: string;
   updatedAt: string;
 };
+
+const HEARTBEAT_INTERVAL_MS = 5_000;
 
 async function readJson<T>(request: IncomingMessage): Promise<T> {
   const chunks: Buffer[] = [];
@@ -1542,6 +1545,12 @@ export function createHostGateway(context: GatewayContext): HostGateway {
     });
 
     socket.on('close', () => {
+      const connection = transportConnections.get(socket);
+
+      if (connection?.heartbeatInterval) {
+        clearInterval(connection.heartbeatInterval);
+      }
+
       transportConnections.delete(socket);
     });
   });
@@ -1568,9 +1577,22 @@ export function createHostGateway(context: GatewayContext): HostGateway {
 
       websocketServer.handleUpgrade(request, socket, head, (ws: WebSocket) => {
         const connectionId = randomUUID();
+        const sendHeartbeat = () => {
+          ws.send(
+            JSON.stringify({
+              type: 'heartbeat',
+              sentAt: now().toISOString(),
+            }),
+          );
+        };
+        const heartbeatInterval = setInterval(
+          sendHeartbeat,
+          HEARTBEAT_INTERVAL_MS,
+        );
         transportConnections.set(ws, {
           connectionId,
           deviceId: authenticated.deviceId,
+          heartbeatInterval,
           threadIds: new Set<string>(),
           reviewQueueSubscribed: false,
         });
@@ -1580,6 +1602,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
             connectionId,
           }),
         );
+        sendHeartbeat();
         websocketServer.emit('connection', ws, request);
       });
     } catch {
@@ -1603,7 +1626,10 @@ export function createHostGateway(context: GatewayContext): HostGateway {
       return address.port;
     },
     async stop() {
-      for (const socket of transportConnections.keys()) {
+      for (const [socket, connection] of transportConnections.entries()) {
+        if (connection.heartbeatInterval) {
+          clearInterval(connection.heartbeatInterval);
+        }
         socket.close();
       }
       await new Promise<void>((resolve) => {

@@ -363,6 +363,30 @@ describe('host gateway', () => {
     expect(threadListResponse.status).toBe(200);
     expect(threadListPayload.threads[0]?.id).toBe('thread-1');
 
+    const heartbeatSocket = new WebSocket(
+      `ws://127.0.0.1:${port}/api/ws?accessToken=${controller.accessToken}`,
+    );
+    cleanups.push(
+      () =>
+        new Promise<void>((cleanupResolve) => {
+          heartbeatSocket.once('close', () => cleanupResolve());
+          heartbeatSocket.close();
+        }),
+    );
+
+    const heartbeatReady = new Promise<boolean>((resolve, reject) => {
+      heartbeatSocket.on('message', (raw: RawData) => {
+        const payload = JSON.parse(raw.toString('utf8')) as
+          | { type: 'ready' }
+          | { type: 'heartbeat'; sentAt: string };
+
+        if (payload.type === 'heartbeat') {
+          resolve(Boolean(payload.sentAt));
+        }
+      });
+      heartbeatSocket.on('error', reject);
+    });
+
     const socket = new WebSocket(
       `ws://127.0.0.1:${port}/api/ws?accessToken=${controller.accessToken}`,
     );
@@ -394,7 +418,7 @@ describe('host gateway', () => {
       });
       socket.on('message', (raw: RawData) => {
         const payload = JSON.parse(raw.toString('utf8')) as
-          | { type: 'ready' | 'subscribed' }
+          | { type: 'ready' | 'subscribed' | 'heartbeat'; sentAt?: string }
           | {
               type: 'timeline.event';
               threadId: string;
@@ -442,7 +466,10 @@ describe('host gateway', () => {
     });
     reviewSocket.on('message', (raw: RawData) => {
       const payload = JSON.parse(raw.toString('utf8')) as
-        | { type: 'ready' | 'reviews.subscribed' }
+        | {
+            type: 'ready' | 'reviews.subscribed' | 'heartbeat';
+            sentAt?: string;
+          }
         | {
             type: 'reviews.snapshot';
             items: Array<{ threadId: string; status: string }>;
@@ -471,6 +498,7 @@ describe('host gateway', () => {
     );
 
     expect(viewerSteer.status).toBe(403);
+    expect(await heartbeatReady).toBe(true);
 
     await subscriptionReady;
     await reviewSubscribed;

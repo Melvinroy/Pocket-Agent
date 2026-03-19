@@ -20,3 +20,6 @@
 - If the host restarts, use replayed thread events and persisted approvals to recover state.
 - Revoke stale device tokens if ownership or device control is unclear.
 - Re-check the active controller lease before approving actions or running presets.
+- If the web shell shows `stale`, wait for heartbeat recovery or use the in-app reconnect control to reopen the host websocket.
+- If the web shell shows repeated `reconnecting` retries, confirm `apps/hostd` is still listening locally before re-pairing a device.
+- Treat controller actions and host presets as unavailable while the transport is degraded; recover the live link first so state and approvals stay consistent.
