@@ -11,12 +11,12 @@ import {
   createEventEnvelope,
   interruptRequestSchema,
   steerRequestSchema,
-} from '@codex-remote/remote-protocol';
+} from '@pocket-agent/remote-protocol';
 import {
   type PairingService,
   redactSecrets,
   type SecurityPolicy,
-} from '@codex-remote/security';
+} from '@pocket-agent/security';
 import type {
   AuditLogRecord,
   ApprovalRecord,
@@ -25,7 +25,7 @@ import type {
   EventRecord,
   SessionStore,
   ThreadRecord,
-} from '@codex-remote/session-store';
+} from '@pocket-agent/session-store';
 import {
   bindWorkspaceWorktree,
   listWorkspaceEntries,
@@ -33,7 +33,7 @@ import {
   readWorkspaceFile,
   resolveTerminalPresetCommand,
   writeWorkspaceFile,
-} from '@codex-remote/workspace-manager';
+} from '@pocket-agent/workspace-manager';
 
 import type { HostConfig } from './config.js';
 

@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  PairingService,
-  redactSecrets,
-} from '../src/index.js';
+import { PairingService, redactSecrets } from '../src/index.js';
 
 describe('security helpers', () => {
   it('redacts nested secret-looking keys', () => {

@@ -10,7 +10,7 @@ import {
   StatGrid,
   StatusPill,
   TimelinePreview,
-} from '@codex-remote/ui';
+} from '@pocket-agent/ui';
 
 import {
   getThread,

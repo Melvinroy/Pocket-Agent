@@ -13,14 +13,14 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@codex-remote/codex-bridge": ["packages/codex-bridge/src/index.ts"],
-      "@codex-remote/remote-protocol": [
+      "@pocket-agent/codex-bridge": ["packages/codex-bridge/src/index.ts"],
+      "@pocket-agent/remote-protocol": [
         "packages/remote-protocol/src/index.ts"
       ],
-      "@codex-remote/security": ["packages/security/src/index.ts"],
-      "@codex-remote/session-store": ["packages/session-store/src/index.ts"],
-      "@codex-remote/ui": ["packages/ui/src/index.tsx"],
-      "@codex-remote/workspace-manager": [
+      "@pocket-agent/security": ["packages/security/src/index.ts"],
+      "@pocket-agent/session-store": ["packages/session-store/src/index.ts"],
+      "@pocket-agent/ui": ["packages/ui/src/index.tsx"],
+      "@pocket-agent/workspace-manager": [
         "packages/workspace-manager/src/index.ts"
       ]
     }

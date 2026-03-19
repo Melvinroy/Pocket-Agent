@@ -12,7 +12,7 @@ import {
   type ProtocolTransport,
   type RequestEnvelope,
   type ResponseEnvelope,
-} from '@codex-remote/remote-protocol';
+} from '@pocket-agent/remote-protocol';
 
 export type CodexCapabilities = Capabilities;
 

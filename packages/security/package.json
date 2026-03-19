@@ -1,6 +1,6 @@
 {
-  "name": "@codex-remote/security",
-  "version": "0.9.0",
+  "name": "@pocket-agent/security",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {

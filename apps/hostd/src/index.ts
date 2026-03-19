@@ -1,13 +1,13 @@
 import {
   createBridgeCapabilities,
   createMockCodexBridge,
-} from '@codex-remote/codex-bridge';
+} from '@pocket-agent/codex-bridge';
 import {
   DEFAULT_SECURITY_POLICY,
   PairingService,
   redactSecrets,
-} from '@codex-remote/security';
-import { createInMemorySessionStore } from '@codex-remote/session-store';
+} from '@pocket-agent/security';
+import { createInMemorySessionStore } from '@pocket-agent/session-store';
 
 import { buildHostConfig } from './lib/config.js';
 import { createHostGateway } from './lib/gateway.js';

@@ -1,6 +1,6 @@
 {
-  "name": "@codex-remote/hostd",
-  "version": "0.9.0",
+  "name": "@pocket-agent/hostd",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,11 +10,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@codex-remote/codex-bridge": "workspace:*",
-    "@codex-remote/remote-protocol": "workspace:*",
-    "@codex-remote/security": "workspace:*",
-    "@codex-remote/session-store": "workspace:*",
-    "@codex-remote/workspace-manager": "workspace:*",
+    "@pocket-agent/codex-bridge": "workspace:*",
+    "@pocket-agent/remote-protocol": "workspace:*",
+    "@pocket-agent/security": "workspace:*",
+    "@pocket-agent/session-store": "workspace:*",
+    "@pocket-agent/workspace-manager": "workspace:*",
     "zod": "^3.24.2"
   }
 }

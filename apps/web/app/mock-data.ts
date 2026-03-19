@@ -222,14 +222,14 @@ export const worktrees: WorktreeSummary[] = [
     id: 'wt-root',
     workspaceId: 'pocket-agent',
     name: 'root',
-    path: 'C:/Users/melvi/OneDrive/Desktop/Codex Remote',
+    path: 'C:/Users/melvi/OneDrive/Desktop/Pocket Agent',
     active: false,
   },
   {
     id: 'wt-mobile',
     workspaceId: 'pocket-agent',
     name: 'feature-mobile',
-    path: 'C:/Users/melvi/OneDrive/Desktop/Codex Remote/.worktrees/feature-mobile',
+    path: 'C:/Users/melvi/OneDrive/Desktop/Pocket Agent/.worktrees/feature-mobile',
     active: true,
   },
 ];

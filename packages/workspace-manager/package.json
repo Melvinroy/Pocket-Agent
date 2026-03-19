@@ -1,6 +1,6 @@
 {
-  "name": "@codex-remote/workspace-manager",
-  "version": "0.9.0",
+  "name": "@pocket-agent/workspace-manager",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {

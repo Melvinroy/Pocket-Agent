@@ -6,7 +6,7 @@
 
 ## Summary
 
-Bootstraps the Codex Remote monorepo, adds the initial host and web app skeletons, establishes typed package boundaries, and introduces repo standards for CI, versioning, ADRs, changelog, release notes, and progress tracking.
+Bootstraps the Pocket Agent monorepo, adds the initial host and web app skeletons, establishes typed package boundaries, and introduces repo standards for CI, versioning, ADRs, changelog, release notes, and progress tracking.
 
 ## Files changed
 

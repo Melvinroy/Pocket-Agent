@@ -173,7 +173,8 @@ export class PairingService {
   public listActiveTokens(): AccessTokenRecord[] {
     return [...this.accessTokens.values()].filter(
       (record) =>
-        record.revokedAt === null && record.expiresAt > this.now().toISOString(),
+        record.revokedAt === null &&
+        record.expiresAt > this.now().toISOString(),
     );
   }
 }

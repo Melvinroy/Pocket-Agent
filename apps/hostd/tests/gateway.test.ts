@@ -7,11 +7,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   PairingService,
   DEFAULT_SECURITY_POLICY,
-} from '@codex-remote/security';
+} from '@pocket-agent/security';
 import {
   createInMemorySessionStore,
   type SessionStore,
-} from '@codex-remote/session-store';
+} from '@pocket-agent/session-store';
 
 import { createHostGateway } from '../src/lib/gateway.js';
 

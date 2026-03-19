@@ -64,3 +64,10 @@
 - Added install, operator, threat-model, and release-checklist docs.
 - Tightened contributor guidance and the compatibility matrix for supported runtime assumptions.
 - Promoted the repository version to `0.9.0` and added OSS hardening release documentation.
+
+### Release candidate
+
+- Created the `codex/chore/release-candidate` slice for `1.0.0` stabilization and public naming consistency.
+- Renamed workspace packages from `@codex-remote/*` to `@pocket-agent/*` and aligned root metadata with the Pocket Agent identity.
+- Added a dedicated Next.js ESLint plugin configuration for the web app to remove framework warning drift from release validation.
+- Promoted the repository version to `1.0.0` and added release-candidate documentation.

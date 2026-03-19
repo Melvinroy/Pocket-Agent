@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createRequestEnvelope } from '@codex-remote/remote-protocol';
+import { createRequestEnvelope } from '@pocket-agent/remote-protocol';
 
 import {
   createMockCodexBridge,
@@ -54,10 +54,27 @@ describe('codex bridge', () => {
       args: [fixturePath],
     });
     const listener = vi.fn();
+    const outputEventSeen = new Promise<void>((resolve) => {
+      const waitForOutput = (event: unknown) => {
+        if (
+          typeof event === 'object' &&
+          event !== null &&
+          'kind' in event &&
+          'name' in event &&
+          event.kind === 'event' &&
+          event.name === 'turn.output'
+        ) {
+          resolve();
+        }
+      };
+
+      listener.mockImplementation(waitForOutput);
+    });
 
     const unsubscribe = bridge.subscribe(listener);
     await bridge.handshake();
     await bridge.send(createRequestEnvelope('threads.list', {}, 'req-threads'));
+    await outputEventSeen;
     unsubscribe();
     await bridge.dispose();
 
@@ -73,7 +90,7 @@ describe('codex bridge', () => {
         name: 'turn.output',
       }),
     );
-  });
+  }, 10_000);
 
   it('rejects unsupported requests from the child process', async () => {
     const bridge = spawnStdioCodexBridge({

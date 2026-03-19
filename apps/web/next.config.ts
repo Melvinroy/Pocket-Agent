@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@codex-remote/ui', '@codex-remote/remote-protocol'],
+  transpilePackages: ['@pocket-agent/ui', '@pocket-agent/remote-protocol'],
 };
 
 export default nextConfig;

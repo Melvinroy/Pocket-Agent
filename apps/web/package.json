@@ -1,6 +1,6 @@
 {
-  "name": "@codex-remote/web",
-  "version": "0.9.0",
+  "name": "@pocket-agent/web",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,8 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@codex-remote/remote-protocol": "workspace:*",
-    "@codex-remote/ui": "workspace:*",
+    "@pocket-agent/remote-protocol": "workspace:*",
+    "@pocket-agent/ui": "workspace:*",
     "next": "^15.2.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
