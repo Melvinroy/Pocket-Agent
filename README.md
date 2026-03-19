@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.5.0` adds a live command console to the web shell. The thread screen now keeps recent host preset output visible inline and appends fresh `turn.output` events over websocket transport, so host `lint`, `test`, and `build` runs no longer disappear into short timeline summaries.
+Pocket Agent `1.6.0` adds a host-routed file editor to the web shell. Changed files now open into a dedicated workspace file page, controllers can save edits back through the host gateway, and viewers still stay read-only behind the same policy boundary.
 
 ## Principles
 

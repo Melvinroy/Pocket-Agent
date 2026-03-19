@@ -282,6 +282,19 @@ export const commandLogs: CommandLogSummary[] = [
   },
 ];
 
+const fileContentsByWorkspace: Record<string, Record<string, string>> = {
+  'pocket-agent': {
+    'apps/web/app/screens.tsx':
+      "export function ThreadScreen() {\n  return 'host-routed';\n}\n",
+    'apps/hostd/src/lib/gateway.ts':
+      "export function createHostGateway() {\n  return { status: 'ready' };\n}\n",
+  },
+  'release-hardening': {
+    'docs/threat-model.md':
+      '# Threat Model\n\nDocument operator-facing risks.\n',
+  },
+};
+
 export function getWorkspace(workspaceId: string) {
   return workspaces.find((workspace) => workspace.id === workspaceId);
 }
@@ -320,4 +333,11 @@ export function getThreadPresets(threadId: string) {
 
 export function getThreadCommandLogs(threadId: string) {
   return commandLogs.filter((commandLog) => commandLog.threadId === threadId);
+}
+
+export function getWorkspaceFileContent(workspaceId: string, path: string) {
+  return (
+    fileContentsByWorkspace[workspaceId]?.[path] ??
+    `// No seeded content for ${path}\n`
+  );
 }

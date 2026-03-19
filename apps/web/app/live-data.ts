@@ -8,6 +8,7 @@ import {
   getThreadPresets,
   getThreadTimeline,
   getWorkspace,
+  getWorkspaceFileContent,
   getWorkspaceFiles,
   getWorkspaceThreads,
   getWorkspaceWorktrees,
@@ -44,6 +45,12 @@ export interface CommandLogView {
   stdout: string;
   stderr: string;
   createdAt: string;
+}
+
+export interface FileDocumentView {
+  workspaceId: string;
+  path: string;
+  contents: string;
 }
 
 interface SessionPayload {
@@ -95,6 +102,12 @@ interface FileListPayload {
     path: string;
     kind: 'file' | 'directory';
   }>;
+}
+
+interface FilePayload {
+  workspaceId: string;
+  path: string;
+  contents: string;
 }
 
 interface WorktreeListPayload {
@@ -453,6 +466,44 @@ export async function getThreadView(workspaceId: string, threadId: string) {
     commandLogs: timelinePayload.timeline
       .map((entry) => mapCommandLog(threadId, entry))
       .filter((entry): entry is CommandLogSummary => entry !== null),
+    transport: await buildTransportConfig(),
+  };
+}
+
+export async function getWorkspaceFileView(
+  workspaceId: string,
+  filePath: string,
+) {
+  const session = await fetchHostJson<SessionPayload>('/api/session');
+  const workspacePayload = await fetchHostJson<{ workspace: WorkspacePayload }>(
+    `/api/workspaces/${workspaceId}`,
+  );
+  const encodedPath = encodeURIComponent(filePath);
+  const filePayload = await fetchHostJson<FilePayload>(
+    `/api/workspaces/${workspaceId}/file?path=${encodedPath}`,
+  );
+
+  if (!workspacePayload || !filePayload) {
+    return {
+      shell: shellState,
+      workspace: getWorkspace(workspaceId) ?? null,
+      file: {
+        workspaceId,
+        path: filePath,
+        contents: getWorkspaceFileContent(workspaceId, filePath),
+      },
+      transport: await buildTransportConfig(),
+    };
+  }
+
+  return {
+    shell: mapShellState(session),
+    workspace: mapWorkspace(workspacePayload.workspace),
+    file: {
+      workspaceId: filePayload.workspaceId,
+      path: filePayload.path,
+      contents: filePayload.contents,
+    },
     transport: await buildTransportConfig(),
   };
 }

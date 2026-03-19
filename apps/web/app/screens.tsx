@@ -357,7 +357,14 @@ export function WorkspaceScreen({
         <DetailList
           items={workspaceFiles.map((file) => ({
             id: file.id,
-            title: file.path,
+            title: (
+              <Link
+                href={`/workspaces/${workspace.id}/file?path=${encodeURIComponent(file.path)}`}
+                style={{ textDecoration: 'none' }}
+              >
+                {file.path}
+              </Link>
+            ),
             body: file.summary,
             badge: (
               <StatusPill tone={file.status === 'new' ? 'success' : 'neutral'}>
@@ -524,7 +531,14 @@ export function ThreadScreen({
         <DetailList
           items={changedFiles.map((file) => ({
             id: file.id,
-            title: file.path,
+            title: (
+              <Link
+                href={`/workspaces/${workspace.id}/file?path=${encodeURIComponent(file.path)}`}
+                style={{ textDecoration: 'none' }}
+              >
+                {file.path}
+              </Link>
+            ),
             body: file.summary,
             badge: (
               <StatusPill tone={file.status === 'new' ? 'success' : 'neutral'}>

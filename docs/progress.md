@@ -106,3 +106,10 @@
 - Added server-side extraction of thread command logs from replayable `turn.output` events and a websocket-aware live command console component.
 - Added browser coverage for seeded command output and live websocket command updates.
 - Promoted the repository version to `1.5.0` and added command console milestone documentation.
+
+### Web file editor
+
+- Created the `codex/feat/web-file-editor` slice for open-from-diff file reading and light editing in the web shell.
+- Added a host-routed file page, local proxy route for file read and save, and changed-file links from workspace and thread views.
+- Added browser coverage for controller-gated file editing through the host boundary.
+- Promoted the repository version to `1.6.0` and added file editor milestone documentation.
