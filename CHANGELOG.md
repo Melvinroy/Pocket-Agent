@@ -32,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Protocol helpers for timeline entries and approval decisions.
 - Approval and control-state surfaces in the thread detail PWA shell.
 
+## [0.7.0] - 2026-03-19
+
+### Added
+
+- Host-safe workspace file listing, reading, and writing helpers with path escape protection.
+- Gateway routes for file browse, file read, file write, and review start.
+- Changed-file and review surfaces in the workspace and thread mobile shell views.
+- Gateway and workspace-manager coverage for file operations and review triggers.
+
 ## [0.3.0] - 2026-03-19
 
 ### Added

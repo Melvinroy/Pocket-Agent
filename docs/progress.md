@@ -43,3 +43,10 @@
 - Added authenticated timeline retrieval, controller-only steer and interrupt actions, and approval resolution to the host gateway.
 - Expanded the thread shell to surface approval sheets and controller action affordances.
 - Promoted the repository version to `0.6.0` and added timeline milestone release documentation.
+
+### Files and review
+
+- Created the `codex/feat/file-browser` slice for host-scoped file access and review flow.
+- Added workspace-manager helpers for safe file listing, reading, and writing within the active workspace boundary.
+- Added host gateway routes for file browse, file read, file write, and review start, with matching shell surfaces for changed files.
+- Promoted the repository version to `0.7.0` and added files milestone release documentation.

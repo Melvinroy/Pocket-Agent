@@ -24,6 +24,7 @@ describe('mobile shell routes', () => {
       screen.getAllByText('Melvinroy/Pocket-Agent').length,
     ).toBeGreaterThan(1);
     expect(screen.getByText('Lease state')).toBeTruthy();
+    expect(screen.getByText('Changed files')).toBeTruthy();
     expect(screen.getByText('Pairing gateway follow-up')).toBeTruthy();
   });
 
@@ -39,6 +40,10 @@ describe('mobile shell routes', () => {
     expect(screen.getByText('Controller actions')).toBeTruthy();
     expect(
       screen.getAllByText('Allow host-side preview build').length,
+    ).toBeGreaterThan(1);
+    expect(screen.getByText('Files and review')).toBeTruthy();
+    expect(
+      screen.getAllByText('apps/hostd/src/lib/gateway.ts').length,
     ).toBeGreaterThan(1);
     expect(screen.getByText('Send a steer or continue prompt')).toBeTruthy();
     expect(screen.getByText('Reconnect UX stubbed')).toBeTruthy();

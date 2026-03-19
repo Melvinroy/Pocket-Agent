@@ -25,6 +25,11 @@ import type {
   SessionStore,
   ThreadRecord,
 } from '@codex-remote/session-store';
+import {
+  listWorkspaceEntries,
+  readWorkspaceFile,
+  writeWorkspaceFile,
+} from '@codex-remote/workspace-manager';
 
 import type { HostConfig } from './config.js';
 
@@ -56,6 +61,16 @@ interface InterruptBody {
 
 interface ApprovalResolveBody {
   decision?: 'approved' | 'rejected';
+}
+
+interface FileWriteBody {
+  path?: string;
+  contents?: string;
+}
+
+interface ReviewStartBody {
+  path?: string;
+  summary?: string;
 }
 
 export interface HostGateway {
@@ -170,6 +185,12 @@ async function requireController(
 function routeMatch(url: string, pattern: RegExp): RegExpExecArray | null {
   const pathname = url.split('?')[0] ?? url;
   return pattern.exec(pathname);
+}
+
+function readQueryValue(url: string, name: string): string | null {
+  const search = url.includes('?') ? url.slice(url.indexOf('?')) : '';
+  const params = new URLSearchParams(search);
+  return params.get(name);
 }
 
 async function getNextSequence(
@@ -627,6 +648,182 @@ export function createHostGateway(context: GatewayContext): HostGateway {
 
       writeJson(response, 200, {
         approval: updatedApproval,
+        event,
+      });
+      return;
+    }
+
+    const filesMatch = routeMatch(url, /^\/api\/workspaces\/([^/]+)\/files$/);
+
+    if (method === 'GET' && filesMatch) {
+      const auth = await authenticateRequest(request, context.pairingService);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const workspace = await context.sessionStore.getWorkspace(filesMatch[1]!);
+
+      if (!workspace) {
+        writeJson(response, 404, { error: 'Workspace not found' });
+        return;
+      }
+
+      const entries = await listWorkspaceEntries(
+        {
+          workspaceId: workspace.id,
+          rootPath: workspace.rootPath,
+          activeWorktreePath: workspace.rootPath,
+        },
+        readQueryValue(url, 'path') ?? '.',
+      );
+
+      writeJson(response, 200, {
+        workspaceId: workspace.id,
+        entries,
+      });
+      return;
+    }
+
+    const fileMatch = routeMatch(url, /^\/api\/workspaces\/([^/]+)\/file$/);
+
+    if (method === 'GET' && fileMatch) {
+      const auth = await authenticateRequest(request, context.pairingService);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const relativePath = readQueryValue(url, 'path');
+      if (!relativePath) {
+        writeJson(response, 400, { error: 'Missing file path' });
+        return;
+      }
+
+      const workspace = await context.sessionStore.getWorkspace(fileMatch[1]!);
+
+      if (!workspace) {
+        writeJson(response, 404, { error: 'Workspace not found' });
+        return;
+      }
+
+      const contents = await readWorkspaceFile(
+        {
+          workspaceId: workspace.id,
+          rootPath: workspace.rootPath,
+          activeWorktreePath: workspace.rootPath,
+        },
+        relativePath,
+      );
+
+      writeJson(response, 200, {
+        workspaceId: workspace.id,
+        path: relativePath,
+        contents,
+      });
+      return;
+    }
+
+    if (method === 'POST' && fileMatch) {
+      const auth = await requireController(request, context, now);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const body = await readJson<FileWriteBody>(request);
+      if (!body.path || typeof body.contents !== 'string') {
+        writeJson(response, 400, { error: 'Missing file write payload' });
+        return;
+      }
+
+      const workspace = await context.sessionStore.getWorkspace(fileMatch[1]!);
+
+      if (!workspace) {
+        writeJson(response, 404, { error: 'Workspace not found' });
+        return;
+      }
+
+      await writeWorkspaceFile(
+        {
+          workspaceId: workspace.id,
+          rootPath: workspace.rootPath,
+          activeWorktreePath: workspace.rootPath,
+        },
+        body.path,
+        body.contents,
+      );
+
+      await appendAudit(
+        context.sessionStore,
+        'file.write',
+        auth.authenticated.deviceId,
+        {
+          workspaceId: workspace.id,
+          path: body.path,
+        },
+        now().toISOString(),
+      );
+
+      writeJson(response, 200, {
+        workspaceId: workspace.id,
+        path: body.path,
+        status: 'saved',
+      });
+      return;
+    }
+
+    const reviewMatch = routeMatch(url, /^\/api\/threads\/([^/]+)\/review$/);
+
+    if (method === 'POST' && reviewMatch) {
+      const auth = await requireController(request, context, now);
+
+      if (!auth.ok) {
+        writeJson(response, auth.statusCode, { error: auth.error });
+        return;
+      }
+
+      const body = await readJson<ReviewStartBody>(request);
+      const thread = await context.sessionStore.getThread(reviewMatch[1]!);
+
+      if (!thread) {
+        writeJson(response, 404, { error: 'Thread not found' });
+        return;
+      }
+
+      const createdAt = now().toISOString();
+      const event = await appendThreadEvent(
+        context.sessionStore,
+        thread,
+        {
+          threadId: thread.id,
+          kind: 'thread.updated',
+          payload: {
+            reviewStarted: true,
+            path: body.path ?? null,
+            summary: body.summary ?? 'Review started from the remote shell',
+            actorDeviceId: auth.authenticated.deviceId,
+          },
+        },
+        createdAt,
+      );
+
+      await appendAudit(
+        context.sessionStore,
+        'review.started',
+        auth.authenticated.deviceId,
+        {
+          threadId: thread.id,
+          path: body.path ?? null,
+        },
+        createdAt,
+      );
+
+      writeJson(response, 202, {
+        accepted: true,
         event,
       });
       return;

@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -53,9 +57,19 @@ async function createControllerSession(port: number) {
 }
 
 async function seedThreadState(sessionStore: SessionStore) {
+  const rootPath = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'pocket-agent-gateway-'),
+  );
+  fs.writeFileSync(path.join(rootPath, 'README.md'), '# Pocket Agent\n');
+  fs.mkdirSync(path.join(rootPath, 'src'), { recursive: true });
+  fs.writeFileSync(
+    path.join(rootPath, 'src', 'app.ts'),
+    'export const app = 1;\n',
+  );
+
   await sessionStore.upsertWorkspace({
     id: 'workspace-1',
-    rootPath: 'C:/workspace',
+    rootPath,
     displayName: 'Pocket Agent',
     createdAt: fixedNow().toISOString(),
   });
@@ -82,6 +96,8 @@ async function seedThreadState(sessionStore: SessionStore) {
     requestedAt: fixedNow().toISOString(),
     resolvedAt: null,
   });
+
+  return rootPath;
 }
 
 describe('host gateway', () => {
@@ -238,7 +254,7 @@ describe('host gateway', () => {
 
   it('streams timeline state and restricts steer plus approval actions to the controller', async () => {
     const sessionStore = createInMemorySessionStore();
-    await seedThreadState(sessionStore);
+    const rootPath = await seedThreadState(sessionStore);
 
     const gateway = createHostGateway({
       config: {
@@ -375,5 +391,75 @@ describe('host gateway', () => {
     expect(interruptResponse.status).toBe(202);
     expect(interruptPayload.event.kind).toBe('turn.status');
     expect(interruptPayload.event.payload.status).toBe('interrupted');
+
+    const filesResponse = await fetch(
+      `http://127.0.0.1:${port}/api/workspaces/workspace-1/files`,
+      {
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+        },
+      },
+    );
+    const filesPayload = (await filesResponse.json()) as {
+      entries: Array<{ name: string; kind: string }>;
+    };
+
+    expect(filesResponse.status).toBe(200);
+    expect(filesPayload.entries[0]?.name).toBe('src');
+
+    const readResponse = await fetch(
+      `http://127.0.0.1:${port}/api/workspaces/workspace-1/file?path=README.md`,
+      {
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+        },
+      },
+    );
+    const readPayload = (await readResponse.json()) as { contents: string };
+
+    expect(readResponse.status).toBe(200);
+    expect(readPayload.contents).toContain('Pocket Agent');
+
+    const writeResponse = await fetch(
+      `http://127.0.0.1:${port}/api/workspaces/workspace-1/file`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          path: 'notes/review.md',
+          contents: 'Review checklist',
+        }),
+      },
+    );
+
+    expect(writeResponse.status).toBe(200);
+    expect(
+      fs.readFileSync(path.join(rootPath, 'notes', 'review.md'), 'utf8'),
+    ).toContain('Review checklist');
+
+    const reviewResponse = await fetch(
+      `http://127.0.0.1:${port}/api/threads/thread-1/review`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${controller.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          path: 'src/app.ts',
+          summary: 'Inspect changed file from diff',
+        }),
+      },
+    );
+    const reviewPayload = (await reviewResponse.json()) as {
+      event: { kind: string; payload: { reviewStarted: boolean } };
+    };
+
+    expect(reviewResponse.status).toBe(202);
+    expect(reviewPayload.event.kind).toBe('thread.updated');
+    expect(reviewPayload.event.payload.reviewStarted).toBe(true);
   });
 });

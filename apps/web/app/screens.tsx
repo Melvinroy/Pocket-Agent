@@ -15,8 +15,10 @@ import {
 import {
   getThread,
   getThreadApprovals,
+  getThreadFiles,
   getThreadTimeline,
   getWorkspace,
+  getWorkspaceFiles,
   getWorkspaceThreads,
   shellState,
   threads,
@@ -207,6 +209,7 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
   }
 
   const workspaceThreads = getWorkspaceThreads(workspace.id);
+  const workspaceFiles = getWorkspaceFiles(workspace.id);
 
   return (
     <PhoneShell
@@ -292,6 +295,24 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId: string }) {
           }))}
         />
       </SectionCard>
+
+      <SectionCard
+        title="Changed files"
+        subtitle="Open diff-linked files without giving the client direct filesystem access."
+      >
+        <DetailList
+          items={workspaceFiles.map((file) => ({
+            id: file.id,
+            title: file.path,
+            body: file.summary,
+            badge: (
+              <StatusPill tone={file.status === 'new' ? 'success' : 'neutral'}>
+                {file.status}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
     </PhoneShell>
   );
 }
@@ -307,6 +328,7 @@ export function ThreadScreen({
   const thread = getThread(threadId);
   const timeline = getThreadTimeline(threadId);
   const approvals = getThreadApprovals(threadId);
+  const changedFiles = getThreadFiles(threadId);
 
   if (!workspace || !thread) {
     return (
@@ -401,6 +423,24 @@ export function ThreadScreen({
             badge: (
               <StatusPill tone={approvalTone(approval.status)}>
                 {approval.status}
+              </StatusPill>
+            ),
+          }))}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Files and review"
+        subtitle="Open changed files from the diff, make a light edit, and start a host-side review pass."
+      >
+        <DetailList
+          items={changedFiles.map((file) => ({
+            id: file.id,
+            title: file.path,
+            body: file.summary,
+            badge: (
+              <StatusPill tone={file.status === 'new' ? 'success' : 'neutral'}>
+                {file.status}
               </StatusPill>
             ),
           }))}

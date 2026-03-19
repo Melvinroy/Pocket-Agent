@@ -38,6 +38,15 @@ export type ApprovalSummary = {
   summary: string;
 };
 
+export type FileChangeSummary = {
+  id: string;
+  workspaceId: string;
+  threadId: string;
+  path: string;
+  status: 'modified' | 'new';
+  summary: string;
+};
+
 export const shellState = {
   deviceName: 'Melvin iPhone',
   role: 'controller',
@@ -164,6 +173,34 @@ export const approvals: ApprovalSummary[] = [
   },
 ];
 
+export const fileChanges: FileChangeSummary[] = [
+  {
+    id: 'file-1',
+    workspaceId: 'pocket-agent',
+    threadId: 'thread-mobile-shell',
+    path: 'apps/web/app/screens.tsx',
+    status: 'modified',
+    summary: 'Thread shell now shows approval sheets and controller actions.',
+  },
+  {
+    id: 'file-2',
+    workspaceId: 'pocket-agent',
+    threadId: 'thread-mobile-shell',
+    path: 'apps/hostd/src/lib/gateway.ts',
+    status: 'modified',
+    summary:
+      'Gateway exposes timeline, file, and review routes behind host auth.',
+  },
+  {
+    id: 'file-3',
+    workspaceId: 'release-hardening',
+    threadId: 'thread-release-notes',
+    path: 'docs/threat-model.md',
+    status: 'new',
+    summary: 'Initial operator threat model outline.',
+  },
+];
+
 export function getWorkspace(workspaceId: string) {
   return workspaces.find((workspace) => workspace.id === workspaceId);
 }
@@ -182,4 +219,12 @@ export function getThreadTimeline(threadId: string) {
 
 export function getThreadApprovals(threadId: string) {
   return approvals.filter((approval) => approval.threadId === threadId);
+}
+
+export function getWorkspaceFiles(workspaceId: string) {
+  return fileChanges.filter((file) => file.workspaceId === workspaceId);
+}
+
+export function getThreadFiles(threadId: string) {
+  return fileChanges.filter((file) => file.threadId === threadId);
 }

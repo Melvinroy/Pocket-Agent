@@ -42,6 +42,12 @@ describe('session store', () => {
         createdAt: '2026-03-19T00:00:00.000Z',
       },
     ]);
+    await expect(store.getWorkspace('workspace-1')).resolves.toEqual({
+      id: 'workspace-1',
+      rootPath: '/repo',
+      displayName: 'Repo',
+      createdAt: '2026-03-19T00:00:00.000Z',
+    });
     await expect(store.listThreads('workspace-1')).resolves.toEqual([
       {
         id: 'thread-1',

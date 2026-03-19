@@ -208,6 +208,7 @@ const migrationStatements = [
 
 export interface SessionStore {
   listWorkspaces(): Promise<WorkspaceRecord[]>;
+  getWorkspace(workspaceId: string): Promise<WorkspaceRecord | null>;
   upsertWorkspace(workspace: WorkspaceRecord): Promise<void>;
   listThreads(workspaceId: string): Promise<ThreadRecord[]>;
   getThread(threadId: string): Promise<ThreadRecord | null>;
@@ -238,6 +239,9 @@ export function createInMemorySessionStore(): SessionStore {
   return {
     async listWorkspaces() {
       return [...workspaces.values()];
+    },
+    async getWorkspace(workspaceId) {
+      return workspaces.get(workspaceId) ?? null;
     },
     async upsertWorkspace(workspace) {
       workspaces.set(workspace.id, workspace);
@@ -367,6 +371,27 @@ export class SqliteSessionStore implements SessionStore {
         'SELECT id, root_path AS rootPath, display_name AS displayName, created_at AS createdAt FROM workspaces ORDER BY created_at ASC',
       )
       .all() as unknown as WorkspaceRecord[];
+  }
+
+  public async getWorkspace(
+    workspaceId: string,
+  ): Promise<WorkspaceRecord | null> {
+    const row = this.connection
+      .prepare(
+        `
+          SELECT
+            id,
+            root_path AS rootPath,
+            display_name AS displayName,
+            created_at AS createdAt
+          FROM workspaces
+          WHERE id = ?
+          LIMIT 1
+        `,
+      )
+      .get(workspaceId) as WorkspaceRecord | undefined;
+
+    return row ?? null;
   }
 
   public async upsertWorkspace(workspace: WorkspaceRecord): Promise<void> {
