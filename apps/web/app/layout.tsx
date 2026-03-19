@@ -4,13 +4,13 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Codex Remote',
+  title: 'Pocket Agent',
   description: 'Phone-first remote coding environment for a local Codex host.',
   manifest: '/manifest.webmanifest',
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0f766e',
+  themeColor: '#142b28',
   width: 'device-width',
   initialScale: 1,
 };

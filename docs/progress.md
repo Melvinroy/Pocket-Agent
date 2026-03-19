@@ -29,3 +29,10 @@
 - Added pairing sessions, confirmation codes, short-lived access tokens, and revoke flow to the security package.
 - Added a localhost host gateway with pairing, session, revoke, and transport endpoints backed by audit logging and controller-lease checks.
 - Promoted the repository version to `0.4.0` and added pairing milestone release documentation.
+
+### Mobile shell
+
+- Created the `codex/feat/mobile-shell` slice for the first phone-first client experience.
+- Replaced the placeholder web landing page with workspace, thread, reconnect, presence, and composer route screens.
+- Expanded the shared UI package to support reusable stat cards, action strips, and detail lists for the PWA.
+- Promoted the repository version to `0.5.0` and added mobile shell milestone release documentation.

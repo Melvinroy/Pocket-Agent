@@ -1,12 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { PhoneShell, TimelinePreview } from '../src/index.js';
+import {
+  ComposerCard,
+  PhoneShell,
+  StatGrid,
+  TimelinePreview,
+} from '../src/index.js';
 
 describe('ui package', () => {
   it('renders the phone shell copy', () => {
     render(
-      <PhoneShell eyebrow="Codex Remote" title="Title" description="Desc">
+      <PhoneShell eyebrow="Pocket Agent" title="Title" description="Desc">
         <div>Body</div>
       </PhoneShell>,
     );
@@ -15,21 +20,41 @@ describe('ui package', () => {
     expect(screen.getByText('Body')).toBeTruthy();
   });
 
-  it('renders timeline rows', () => {
+  it('renders timeline rows and stat blocks', () => {
     render(
-      <TimelinePreview
-        items={[
-          {
-            id: '1',
-            title: 'Bridge bootstrap',
-            status: 'active',
-            summary: 'Running',
-          },
-        ]}
+      <>
+        <StatGrid
+          items={[{ label: 'Connection', value: 'steady', hint: 'healthy' }]}
+        />
+        <TimelinePreview
+          items={[
+            {
+              id: '1',
+              title: 'Bridge bootstrap',
+              status: 'active',
+              summary: 'Running',
+              meta: 'transport',
+            },
+          ]}
+        />
+      </>,
+    );
+
+    expect(screen.getByText('steady')).toBeTruthy();
+    expect(screen.getByText('Bridge bootstrap')).toBeTruthy();
+    expect(screen.getByText('transport')).toBeTruthy();
+  });
+
+  it('renders the composer card footer', () => {
+    render(
+      <ComposerCard
+        title="Compose"
+        placeholder="Prompt"
+        footer={<div>Footer state</div>}
       />,
     );
 
-    expect(screen.getByText('Bridge bootstrap')).toBeTruthy();
-    expect(screen.getByText('Running')).toBeTruthy();
+    expect(screen.getByText('Compose')).toBeTruthy();
+    expect(screen.getByText('Footer state')).toBeTruthy();
   });
 });

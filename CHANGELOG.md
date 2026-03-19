@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Controller versus viewer role handling with controller-lease enforcement.
 - Gateway tests covering pairing, authenticated session lookup, and revoke flow.
 
+## [0.5.0] - 2026-03-19
+
+### Added
+
+- Mobile-first PWA dashboard for workspace and session posture.
+- Workspace detail and thread detail routes with reconnect, presence, and composer states.
+- Expanded shared UI primitives for stats, action strips, detail lists, and composer surfaces.
+- Route-level browser tests for the home, workspace, and thread shells.
+
 ## [0.3.0] - 2026-03-19
 
 ### Added
