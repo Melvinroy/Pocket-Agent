@@ -23,6 +23,7 @@ export default async function ThreadPage({
       approvalsData={view.approvals}
       changedFilesData={view.files}
       presetsData={view.presets}
+      commandLogsData={view.commandLogs}
       transport={view.transport}
     />
   );

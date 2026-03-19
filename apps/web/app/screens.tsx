@@ -12,15 +12,22 @@ import {
   TimelinePreview,
 } from '@pocket-agent/ui';
 
-import type { ShellStateView, TransportConfig } from './live-data';
+import type {
+  CommandLogView,
+  ShellStateView,
+  TransportConfig,
+} from './live-data';
+import { LiveCommandConsole } from './live-command-console';
 import { LiveTimeline } from './live-timeline';
 import { ThreadActions } from './thread-actions';
 import { ThreadPresets } from './thread-presets';
 import {
   type ApprovalSummary,
+  type CommandLogSummary,
   type FileChangeSummary,
   getThread,
   getThreadApprovals,
+  getThreadCommandLogs,
   getThreadFiles,
   getThreadPresets,
   getThreadTimeline,
@@ -392,6 +399,7 @@ export function ThreadScreen({
   approvalsData,
   changedFilesData,
   presetsData,
+  commandLogsData,
   transport,
 }: {
   workspaceId: string;
@@ -403,6 +411,7 @@ export function ThreadScreen({
   approvalsData?: ApprovalSummary[];
   changedFilesData?: FileChangeSummary[];
   presetsData?: TerminalPresetSummary[];
+  commandLogsData?: CommandLogView[] | CommandLogSummary[];
   transport?: TransportConfig;
 }) {
   const workspace = workspaceData ?? getWorkspace(workspaceId);
@@ -411,6 +420,7 @@ export function ThreadScreen({
   const approvals = approvalsData ?? getThreadApprovals(threadId);
   const changedFiles = changedFilesData ?? getThreadFiles(threadId);
   const presets = presetsData ?? getThreadPresets(threadId);
+  const commandLogs = commandLogsData ?? getThreadCommandLogs(threadId);
 
   if (!workspace || !thread) {
     return (
@@ -522,6 +532,23 @@ export function ThreadScreen({
               </StatusPill>
             ),
           }))}
+        />
+      </SectionCard>
+
+      <SectionCard
+        title="Command console"
+        subtitle="Recent host preset output stays visible in the thread instead of collapsing into short timeline summaries."
+      >
+        <LiveCommandConsole
+          threadId={threadId}
+          initialLogs={commandLogs}
+          transport={
+            transport ?? {
+              enabled: false,
+              websocketUrl: null,
+              accessToken: null,
+            }
+          }
         />
       </SectionCard>
 

@@ -63,6 +63,17 @@ export type TerminalPresetSummary = {
   status: 'idle' | 'ready' | 'last-run';
 };
 
+export type CommandLogSummary = {
+  id: string;
+  threadId: string;
+  preset: 'lint' | 'test' | 'build';
+  cwd: string;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  createdAt: string;
+};
+
 export const shellState = {
   deviceName: 'Melvin iPhone',
   role: 'controller',
@@ -258,6 +269,19 @@ export const terminalPresets: TerminalPresetSummary[] = [
   },
 ];
 
+export const commandLogs: CommandLogSummary[] = [
+  {
+    id: 'command-1',
+    threadId: 'thread-mobile-shell',
+    preset: 'test',
+    cwd: '.worktrees/feature-mobile',
+    exitCode: 0,
+    stdout: 'vitest run --coverage\n35 passed\n',
+    stderr: '',
+    createdAt: '1 min ago',
+  },
+];
+
 export function getWorkspace(workspaceId: string) {
   return workspaces.find((workspace) => workspace.id === workspaceId);
 }
@@ -292,4 +316,8 @@ export function getWorkspaceWorktrees(workspaceId: string) {
 
 export function getThreadPresets(threadId: string) {
   return terminalPresets.filter((preset) => preset.threadId === threadId);
+}
+
+export function getThreadCommandLogs(threadId: string) {
+  return commandLogs.filter((commandLog) => commandLog.threadId === threadId);
 }

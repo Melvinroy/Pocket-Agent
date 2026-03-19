@@ -99,3 +99,10 @@
 - Added a Next.js proxy route and a thread preset runner for host `lint`, `test`, and `build` execution using the bound thread worktree.
 - Added browser coverage for controller-gated preset execution from the thread screen.
 - Promoted the repository version to `1.4.0` and added terminal preset milestone documentation.
+
+### Web command console
+
+- Created the `codex/feat/web-command-console` slice for inline host command visibility in the thread shell.
+- Added server-side extraction of thread command logs from replayable `turn.output` events and a websocket-aware live command console component.
+- Added browser coverage for seeded command output and live websocket command updates.
+- Promoted the repository version to `1.5.0` and added command console milestone documentation.

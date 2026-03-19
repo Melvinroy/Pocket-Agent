@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.4.0` adds host-side terminal preset execution to the web shell. A paired controller can now run host `lint`, `test`, and `build` presets from the thread screen alongside steer, interrupt, and approval actions, all through host-routed Next.js proxy endpoints.
+Pocket Agent `1.5.0` adds a live command console to the web shell. The thread screen now keeps recent host preset output visible inline and appends fresh `turn.output` events over websocket transport, so host `lint`, `test`, and `build` runs no longer disappear into short timeline summaries.
 
 ## Principles
 

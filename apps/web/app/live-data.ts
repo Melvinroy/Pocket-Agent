@@ -1,6 +1,8 @@
 import {
   type ApprovalSummary,
+  type CommandLogSummary,
   type FileChangeSummary,
+  getThreadCommandLogs,
   getThreadApprovals,
   getThreadFiles,
   getThreadPresets,
@@ -31,6 +33,17 @@ export interface TransportConfig {
   enabled: boolean;
   websocketUrl: string | null;
   accessToken: string | null;
+}
+
+export interface CommandLogView {
+  id: string;
+  threadId: string;
+  preset: 'lint' | 'test' | 'build';
+  cwd: string;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  createdAt: string;
 }
 
 interface SessionPayload {
@@ -254,6 +267,36 @@ function mapWorktree(
   };
 }
 
+function mapCommandLog(
+  threadId: string,
+  entry: TimelinePayload['timeline'][number],
+): CommandLogSummary | null {
+  const payload = entry.envelope.payload;
+
+  if (
+    entry.envelope.name !== 'turn.output' ||
+    (payload.preset !== 'lint' &&
+      payload.preset !== 'test' &&
+      payload.preset !== 'build')
+  ) {
+    return null;
+  }
+
+  return {
+    id: entry.envelope.id,
+    threadId,
+    preset: payload.preset,
+    cwd:
+      typeof payload.cwd === 'string' && payload.cwd
+        ? payload.cwd
+        : 'bound workspace',
+    exitCode: typeof payload.exitCode === 'number' ? payload.exitCode : 1,
+    stdout: typeof payload.stdout === 'string' ? payload.stdout : '',
+    stderr: typeof payload.stderr === 'string' ? payload.stderr : '',
+    createdAt: entry.createdAt,
+  };
+}
+
 async function buildTransportConfig(): Promise<TransportConfig> {
   const { hostUrl: baseUrl, accessToken: token } = await readHostSession();
 
@@ -375,6 +418,7 @@ export async function getThreadView(workspaceId: string, threadId: string) {
       approvals: getThreadApprovals(threadId),
       files: getThreadFiles(threadId),
       presets: getThreadPresets(threadId),
+      commandLogs: getThreadCommandLogs(threadId),
       transport: await buildTransportConfig(),
     };
   }
@@ -406,6 +450,9 @@ export async function getThreadView(workspaceId: string, threadId: string) {
         mapWorkspaceEntry(workspaceId, threadId, entry),
       ) ?? getThreadFiles(threadId),
     presets,
+    commandLogs: timelinePayload.timeline
+      .map((entry) => mapCommandLog(threadId, entry))
+      .filter((entry): entry is CommandLogSummary => entry !== null),
     transport: await buildTransportConfig(),
   };
 }
