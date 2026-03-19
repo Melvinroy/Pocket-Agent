@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-Pocket Agent `1.15.0` adds a viewer-first pairing fallback in the web shell. When another device already holds the controller lease, operators can switch the same host session into read-only mode instead of getting stuck on a failed controller-only pairing flow.
+Pocket Agent `1.16.0` adds connected-session role management in the web shell. Operators can now see the live device role after pairing, switch between viewer and controller from the same panel, and keep host lease state accurate when sessions are revoked.
 
 ## Principles
 

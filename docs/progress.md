@@ -188,3 +188,12 @@
 - Added a one-click fallback action that retries the same host pairing request as a viewer after a controller-only conflict.
 - Updated browser tests for the new pairing labels and viewer fallback flow.
 - Promoted the repository version to `1.15.0` and added viewer pairing milestone documentation.
+
+### Session role management
+
+- Created the `codex/feat/session-role-management` slice so connected devices can see and manage their current host role.
+- Added connected-session role visibility and active-controller context to the web Connect Panel.
+- Added a connected-session role switch flow that revokes the current token and re-pairs into the requested role through the host proxy.
+- Updated host persistence so token revocation marks devices revoked and releases any matching controller lease.
+- Added host and browser regression coverage for session display names, lease release, and connected role switching.
+- Promoted the repository version to `1.16.0` and added session role management milestone documentation.

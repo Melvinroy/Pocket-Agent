@@ -57,7 +57,8 @@ export interface FileDocumentView {
 
 interface SessionPayload {
   deviceId: string;
-  role: string;
+  displayName: string;
+  role: 'controller' | 'viewer';
   activeControllerDeviceId: string | null;
 }
 
@@ -159,7 +160,7 @@ function mapShellState(session: SessionPayload | null): ShellStateView {
   }
 
   return {
-    deviceName: session.deviceId,
+    deviceName: session.displayName,
     role: session.role,
     connection: 'live',
     reconnectLabel: session.activeControllerDeviceId
@@ -403,6 +404,7 @@ export async function getHomeView() {
 
   if (!workspacePayload) {
     return {
+      session: null,
       shell: shellState,
       workspaces,
       featuredThread: threads[0] ?? null,
@@ -418,6 +420,7 @@ export async function getHomeView() {
     .filter((item): item is ReviewQueueItem => item !== null);
 
   return {
+    session,
     shell: mapShellState(session),
     workspaces: mappedWorkspaces,
     featuredThread: allThreads[0]?.thread

@@ -5,6 +5,7 @@ import { hostSessionCookieNames } from '../../../host-session';
 interface HostSessionBody {
   hostUrl?: string;
   accessToken?: string;
+  displayName?: string;
 }
 
 export async function POST(request: Request) {
@@ -32,6 +33,14 @@ export async function POST(request: Request) {
     secure: false,
     path: '/',
   });
+  if (body.displayName) {
+    response.cookies.set(cookieNames.deviceName, body.displayName, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      path: '/',
+    });
+  }
 
   return response;
 }
@@ -48,6 +57,13 @@ export async function DELETE() {
     expires: new Date(0),
   });
   response.cookies.set(cookieNames.accessToken, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: false,
+    path: '/',
+    expires: new Date(0),
+  });
+  response.cookies.set(cookieNames.deviceName, '', {
     httpOnly: true,
     sameSite: 'lax',
     secure: false,

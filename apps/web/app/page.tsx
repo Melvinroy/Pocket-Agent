@@ -13,7 +13,12 @@ export default async function HomePage() {
       workspaceItems={view.workspaces}
       featuredThread={view.featuredThread}
       reviewQueueItems={view.reviewQueue}
-      connectPanel={<ConnectPanel connected={view.transport.enabled} />}
+      connectPanel={
+        <ConnectPanel
+          connected={view.transport.enabled}
+          currentSession={view.session ?? null}
+        />
+      }
       transport={view.transport}
     />
   );

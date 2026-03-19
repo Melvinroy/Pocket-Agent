@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-03-20
+
+### Added
+
+- Connected-session role visibility in the web Connect Panel, including active-controller context for the current device.
+- One-tap connected-session role switching through the web proxy without manually disconnecting and re-pairing.
+- Host session responses now include device display names for better operator-facing session state.
+
+### Fixed
+
+- Revoking a host access token now releases the controller lease and marks the paired device revoked in host persistence.
+
 ## [1.15.0] - 2026-03-20
 
 ### Added

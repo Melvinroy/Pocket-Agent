@@ -69,6 +69,12 @@ export async function POST(request: Request) {
       secure: false,
       path: '/',
     });
+    nextResponse.cookies.set(cookieNames.deviceName, body.displayName, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      path: '/',
+    });
 
     return nextResponse;
   } catch {

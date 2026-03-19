@@ -738,6 +738,16 @@ export function createHostGateway(context: GatewayContext): HostGateway {
 
       try {
         context.pairingService.revokeToken(token);
+        const revokedAt = now().toISOString();
+        await Promise.all([
+          context.sessionStore.revokeDevice(
+            auth.authenticated.deviceId,
+            revokedAt,
+          ),
+          context.sessionStore.releaseControllerLease(
+            auth.authenticated.deviceId,
+          ),
+        ]);
         await appendAudit(
           context.sessionStore,
           'token.revoked',
@@ -745,7 +755,7 @@ export function createHostGateway(context: GatewayContext): HostGateway {
           {
             role: auth.authenticated.role,
           },
-          now().toISOString(),
+          revokedAt,
         );
         writeJson(response, 200, { status: 'revoked' });
       } catch (error) {
@@ -766,12 +776,16 @@ export function createHostGateway(context: GatewayContext): HostGateway {
       }
 
       try {
-        const lease = await context.sessionStore.getControllerLease(
-          now().toISOString(),
-        );
+        const nowIso = now().toISOString();
+        const [lease, device] = await Promise.all([
+          context.sessionStore.getControllerLease(nowIso),
+          context.sessionStore.getDevice(auth.authenticated.deviceId),
+        ]);
 
         writeJson(response, 200, {
           deviceId: auth.authenticated.deviceId,
+          displayName:
+            device?.displayName ?? `Device ${auth.authenticated.deviceId}`,
           role: auth.authenticated.role,
           expiresAt: auth.authenticated.expiresAt,
           activeControllerDeviceId: lease?.deviceId ?? null,

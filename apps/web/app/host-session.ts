@@ -2,10 +2,12 @@ import { cookies } from 'next/headers';
 
 const HOST_URL_COOKIE = 'pocket_agent_host_url';
 const ACCESS_TOKEN_COOKIE = 'pocket_agent_access_token';
+const DEVICE_NAME_COOKIE = 'pocket_agent_device_name';
 
 export interface HostSession {
   hostUrl: string | null;
   accessToken: string | null;
+  deviceName: string | null;
 }
 
 function envHostSession(): HostSession {
@@ -15,6 +17,7 @@ function envHostSession(): HostSession {
   return {
     hostUrl: hostUrl ? hostUrl.replace(/\/$/, '') : null,
     accessToken,
+    deviceName: null,
   };
 }
 
@@ -24,11 +27,14 @@ export async function readHostSession(): Promise<HostSession> {
     const hostUrl = cookieStore.get(HOST_URL_COOKIE)?.value?.trim() || null;
     const accessToken =
       cookieStore.get(ACCESS_TOKEN_COOKIE)?.value?.trim() || null;
+    const deviceName =
+      cookieStore.get(DEVICE_NAME_COOKIE)?.value?.trim() || null;
 
     if (hostUrl && accessToken) {
       return {
         hostUrl: hostUrl.replace(/\/$/, ''),
         accessToken,
+        deviceName,
       };
     }
   } catch {
@@ -42,5 +48,6 @@ export function hostSessionCookieNames() {
   return {
     hostUrl: HOST_URL_COOKIE,
     accessToken: ACCESS_TOKEN_COOKIE,
+    deviceName: DEVICE_NAME_COOKIE,
   };
 }

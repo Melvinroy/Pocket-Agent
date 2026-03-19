@@ -52,7 +52,7 @@ describe('ConnectPanel', () => {
         ),
       );
 
-    render(<ConnectPanel connected={false} />);
+    render(<ConnectPanel connected={false} currentSession={null} />);
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Start controller pairing' }),
@@ -105,7 +105,7 @@ describe('ConnectPanel', () => {
       ),
     );
 
-    render(<ConnectPanel connected={false} />);
+    render(<ConnectPanel connected={false} currentSession={null} />);
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Pair as viewer instead' }),
@@ -130,5 +130,67 @@ describe('ConnectPanel', () => {
       ).toBeTruthy();
     });
     expect(screen.getByText('Code 654-321')).toBeTruthy();
+  });
+
+  it('shows the connected viewer role and switches to controller access', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          accessToken: 'token-2',
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+          },
+        },
+      ),
+    );
+    const reloadMock = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        reload: reloadMock,
+      },
+    });
+
+    render(
+      <ConnectPanel
+        connected
+        currentSession={{
+          activeControllerDeviceId: 'device-controller',
+          deviceId: 'device-viewer',
+          displayName: 'Pocket Agent Web',
+          role: 'viewer',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('viewer')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Controller access is currently held by device-controller.',
+      ),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Request controller access' }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/host/session/role', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: 'controller',
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(reloadMock).toHaveBeenCalled();
+    });
   });
 });

@@ -13,6 +13,13 @@ interface PairingPayload {
 
 type PairingRole = 'controller' | 'viewer';
 
+interface ConnectedSession {
+  activeControllerDeviceId: string | null;
+  deviceId: string;
+  displayName: string;
+  role: PairingRole;
+}
+
 function formatPairingError(error: string | null | undefined) {
   if (!error) {
     return 'Unable to complete pairing';
@@ -25,13 +32,24 @@ function formatPairingError(error: string | null | undefined) {
   return error;
 }
 
-export function ConnectPanel({ connected }: { connected: boolean }) {
+export function ConnectPanel({
+  connected,
+  currentSession,
+}: {
+  connected: boolean;
+  currentSession: ConnectedSession | null;
+}) {
   const [hostUrl, setHostUrl] = useState('http://127.0.0.1:43110');
-  const [displayName, setDisplayName] = useState('Pocket Agent Web');
+  const [displayName, setDisplayName] = useState(
+    currentSession?.displayName ?? 'Pocket Agent Web',
+  );
   const [role, setRole] = useState<PairingRole>('controller');
   const [pairing, setPairing] = useState<PairingPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const connectedRole = currentSession?.role ?? null;
+  const controllerActiveHere =
+    currentSession?.activeControllerDeviceId === currentSession?.deviceId;
 
   const startPairing = (nextRole: PairingRole = role) => {
     startTransition(async () => {
@@ -106,6 +124,31 @@ export function ConnectPanel({ connected }: { connected: boolean }) {
       });
       setPairing(null);
       setError(null);
+      window.location.reload();
+    });
+  };
+
+  const switchRole = (nextRole: PairingRole) => {
+    startTransition(async () => {
+      setError(null);
+      const response = await fetch('/api/host/session/role', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: nextRole,
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        setError(
+          formatPairingError(payload.error ?? 'Unable to switch device role'),
+        );
+        return;
+      }
+
       window.location.reload();
     });
   };
@@ -190,6 +233,13 @@ export function ConnectPanel({ connected }: { connected: boolean }) {
         <StatusPill tone={connected ? 'success' : 'warning'}>
           {connected ? 'Connected' : 'Not paired'}
         </StatusPill>
+        {connectedRole ? (
+          <StatusPill
+            tone={connectedRole === 'controller' ? 'warning' : 'neutral'}
+          >
+            {connectedRole}
+          </StatusPill>
+        ) : null}
         {!connected ? (
           <StatusPill tone={role === 'controller' ? 'warning' : 'neutral'}>
             {role}
@@ -206,16 +256,55 @@ export function ConnectPanel({ connected }: { connected: boolean }) {
         <p style={{ margin: 0, color: '#9f1d1d', fontWeight: 700 }}>{error}</p>
       ) : null}
 
+      {connected && currentSession ? (
+        <div
+          style={{ display: 'grid', gap: 6, fontSize: 13, color: '#51615b' }}
+        >
+          <div>
+            Connected as <strong>{currentSession.displayName}</strong> on device{' '}
+            <strong>{currentSession.deviceId}</strong>.
+          </div>
+          <div>
+            {controllerActiveHere
+              ? 'This device currently holds the active controller lease.'
+              : currentSession.activeControllerDeviceId
+                ? `Controller access is currently held by ${currentSession.activeControllerDeviceId}.`
+                : 'No active controller lease is currently held.'}
+          </div>
+        </div>
+      ) : null}
+
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {connected ? (
-          <button
-            type="button"
-            onClick={disconnect}
-            disabled={isPending}
-            style={buttonStyle(false)}
-          >
-            Disconnect
-          </button>
+          <>
+            {connectedRole === 'viewer' ? (
+              <button
+                type="button"
+                onClick={() => switchRole('controller')}
+                disabled={isPending}
+                style={buttonStyle(true)}
+              >
+                Request controller access
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => switchRole('viewer')}
+                disabled={isPending}
+                style={buttonStyle(true)}
+              >
+                Switch to viewer
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={disconnect}
+              disabled={isPending}
+              style={buttonStyle(false)}
+            >
+              Disconnect
+            </button>
+          </>
         ) : pairing ? (
           <button
             type="button"

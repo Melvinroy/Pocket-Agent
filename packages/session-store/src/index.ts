@@ -220,8 +220,11 @@ export interface SessionStore {
   getApproval(approvalId: string): Promise<ApprovalRecord | null>;
   listApprovals(threadId: string): Promise<ApprovalRecord[]>;
   registerDevice(device: DeviceRecord): Promise<void>;
+  getDevice(deviceId: string): Promise<DeviceRecord | null>;
+  revokeDevice(deviceId: string, revokedAt: string): Promise<void>;
   acquireControllerLease(lease: ControllerLeaseRecord): Promise<boolean>;
   getControllerLease(now: string): Promise<ControllerLeaseRecord | null>;
+  releaseControllerLease(deviceId: string): Promise<void>;
   appendAuditLog(entry: AuditLogRecord): Promise<void>;
   listAuditLog(): Promise<AuditLogRecord[]>;
   dispose(): Promise<void>;
@@ -295,6 +298,21 @@ export function createInMemorySessionStore(): SessionStore {
     async registerDevice(device) {
       devices.set(device.id, device);
     },
+    async getDevice(deviceId) {
+      return devices.get(deviceId) ?? null;
+    },
+    async revokeDevice(deviceId, revokedAt) {
+      const device = devices.get(deviceId);
+
+      if (!device) {
+        return;
+      }
+
+      devices.set(deviceId, {
+        ...device,
+        revokedAt,
+      });
+    },
     async acquireControllerLease(lease) {
       if (
         controllerLease &&
@@ -313,6 +331,11 @@ export function createInMemorySessionStore(): SessionStore {
       }
 
       return controllerLease;
+    },
+    async releaseControllerLease(deviceId) {
+      if (controllerLease?.deviceId === deviceId) {
+        controllerLease = null;
+      }
     },
     async appendAuditLog(entry) {
       auditLog.push(entry);
@@ -655,6 +678,41 @@ export class SqliteSessionStore implements SessionStore {
       );
   }
 
+  public async getDevice(deviceId: string): Promise<DeviceRecord | null> {
+    const row = this.connection
+      .prepare(
+        `
+          SELECT
+            id,
+            display_name AS displayName,
+            role,
+            paired_at AS pairedAt,
+            revoked_at AS revokedAt
+          FROM devices
+          WHERE id = ?
+          LIMIT 1
+        `,
+      )
+      .get(deviceId) as DeviceRecord | undefined;
+
+    return row ?? null;
+  }
+
+  public async revokeDevice(
+    deviceId: string,
+    revokedAt: string,
+  ): Promise<void> {
+    this.connection
+      .prepare(
+        `
+          UPDATE devices
+          SET revoked_at = ?
+          WHERE id = ?
+        `,
+      )
+      .run(revokedAt, deviceId);
+  }
+
   public async acquireControllerLease(
     lease: ControllerLeaseRecord,
   ): Promise<boolean> {
@@ -719,6 +777,17 @@ export class SqliteSessionStore implements SessionStore {
       .get(now) as ControllerLeaseRecord | undefined;
 
     return row ?? null;
+  }
+
+  public async releaseControllerLease(deviceId: string): Promise<void> {
+    this.connection
+      .prepare(
+        `
+          DELETE FROM controller_leases
+          WHERE id = 'controller' AND device_id = ?
+        `,
+      )
+      .run(deviceId);
   }
 
   public async appendAuditLog(entry: AuditLogRecord): Promise<void> {

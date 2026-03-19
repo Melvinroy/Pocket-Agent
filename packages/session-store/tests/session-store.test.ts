@@ -186,6 +186,50 @@ describe('session store', () => {
     await store.dispose();
   });
 
+  it('tracks device revocation and releases the controller lease', async () => {
+    const store = createSqliteSessionStore({
+      filename: createTempDbPath('device-revoke'),
+    });
+
+    await store.registerDevice({
+      id: 'device-1',
+      displayName: 'Phone',
+      role: 'controller',
+      pairedAt: '2026-03-19T00:00:00.000Z',
+      revokedAt: null,
+    });
+    await store.acquireControllerLease({
+      id: 'controller',
+      deviceId: 'device-1',
+      acquiredAt: '2026-03-19T00:00:00.000Z',
+      expiresAt: '2026-03-19T00:05:00.000Z',
+    });
+
+    await expect(store.getDevice('device-1')).resolves.toEqual({
+      id: 'device-1',
+      displayName: 'Phone',
+      role: 'controller',
+      pairedAt: '2026-03-19T00:00:00.000Z',
+      revokedAt: null,
+    });
+
+    await store.revokeDevice('device-1', '2026-03-19T00:01:00.000Z');
+    await store.releaseControllerLease('device-1');
+
+    await expect(store.getDevice('device-1')).resolves.toEqual({
+      id: 'device-1',
+      displayName: 'Phone',
+      role: 'controller',
+      pairedAt: '2026-03-19T00:00:00.000Z',
+      revokedAt: '2026-03-19T00:01:00.000Z',
+    });
+    await expect(
+      store.getControllerLease('2026-03-19T00:02:00.000Z'),
+    ).resolves.toBeNull();
+
+    await store.dispose();
+  });
+
   it('stores approvals and audit log entries', async () => {
     const store = createSqliteSessionStore({
       filename: createTempDbPath('audit'),

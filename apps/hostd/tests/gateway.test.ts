@@ -240,10 +240,12 @@ describe('host gateway', () => {
       },
     );
     const session = (await sessionResponse.json()) as {
+      displayName: string;
       role: string;
       activeControllerDeviceId: string | null;
     };
 
+    expect(session.displayName).toBe('Primary Phone');
     expect(session.role).toBe('controller');
     expect(session.activeControllerDeviceId).toBeTruthy();
 
@@ -258,6 +260,43 @@ describe('host gateway', () => {
     );
 
     expect(revokeResponse.status).toBe(200);
+
+    const revokedSessionResponse = await fetch(
+      `http://127.0.0.1:${port}/api/session`,
+      {
+        headers: {
+          authorization: `Bearer ${firstPayload.accessToken}`,
+        },
+      },
+    );
+
+    expect(revokedSessionResponse.status).toBe(401);
+
+    const viewerStart = await fetch(
+      `http://127.0.0.1:${port}/api/pairing/start`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ role: 'viewer' }),
+      },
+    );
+    const viewerPairing = (await viewerStart.json()) as {
+      pairingSession: { id: string; confirmationCode: string };
+    };
+    const viewerConfirm = await fetch(
+      `http://127.0.0.1:${port}/api/pairing/confirm`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          pairingId: viewerPairing.pairingSession.id,
+          confirmationCode: viewerPairing.pairingSession.confirmationCode,
+          displayName: 'Viewer Phone',
+        }),
+      },
+    );
+
+    expect(viewerConfirm.status).toBe(200);
   });
 
   it('streams timeline state and restricts steer plus approval actions to the controller', async () => {
