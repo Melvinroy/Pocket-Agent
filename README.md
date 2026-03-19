@@ -4,7 +4,7 @@ Pocket Agent is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-This repository is in active bootstrap. Version `0.3.0` adds SQLite-backed persistence, replay-oriented session storage, approvals, devices, controller lease tracking, and audit logging on top of the bridge alpha.
+This repository is in active bootstrap. Version `0.4.0` adds host pairing and gateway flows with short-lived access tokens, controller and viewer roles, revoke support, and the first authenticated host API surface.
 
 ## Principles
 

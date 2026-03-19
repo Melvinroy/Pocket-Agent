@@ -22,3 +22,10 @@
 - Replaced the in-memory session store with a SQLite-backed repository using Drizzle schema definitions and startup migrations.
 - Added replay helpers, approvals storage, paired devices, controller lease enforcement, and audit log persistence.
 - Promoted the repository version to `0.3.0` and added persistence milestone release documentation.
+
+### Pairing and gateway
+
+- Created the `codex/feat/pairing-gateway` slice for secure host access.
+- Added pairing sessions, confirmation codes, short-lived access tokens, and revoke flow to the security package.
+- Added a localhost host gateway with pairing, session, revoke, and transport endpoints backed by audit logging and controller-lease checks.
+- Promoted the repository version to `0.4.0` and added pairing milestone release documentation.
