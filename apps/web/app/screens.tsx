@@ -15,6 +15,7 @@ import {
 import type { ShellStateView, TransportConfig } from './live-data';
 import { LiveTimeline } from './live-timeline';
 import { ThreadActions } from './thread-actions';
+import { ThreadPresets } from './thread-presets';
 import {
   type ApprovalSummary,
   type FileChangeSummary,
@@ -528,25 +529,10 @@ export function ThreadScreen({
         title="Terminal presets"
         subtitle="Host-side lint, test, and build actions run inside the bound worktree cwd."
       >
-        <DetailList
-          items={presets.map((preset) => ({
-            id: preset.id,
-            title: preset.preset,
-            body: `${preset.cwd} | ${preset.status}`,
-            badge: (
-              <StatusPill
-                tone={
-                  preset.status === 'last-run'
-                    ? 'success'
-                    : preset.status === 'ready'
-                      ? 'warning'
-                      : 'neutral'
-                }
-              >
-                {preset.status}
-              </StatusPill>
-            ),
-          }))}
+        <ThreadPresets
+          threadId={threadId}
+          presets={presets}
+          enabled={transport?.enabled === true && shell.role === 'controller'}
         />
       </SectionCard>
 

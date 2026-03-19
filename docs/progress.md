@@ -92,3 +92,10 @@
 - Added Next.js proxy routes and a thread action panel for steer, interrupt, and approval resolution using the existing host controller lease.
 - Fixed a bridge chunk-processing bug that could stall stdio handshake tests when events and responses shared a read buffer.
 - Promoted the repository version to `1.3.0` and added controller action milestone documentation.
+
+### Web terminal presets
+
+- Created the `codex/feat/web-terminal-presets` slice for host-side command presets from the web shell.
+- Added a Next.js proxy route and a thread preset runner for host `lint`, `test`, and `build` execution using the bound thread worktree.
+- Added browser coverage for controller-gated preset execution from the thread screen.
+- Promoted the repository version to `1.4.0` and added terminal preset milestone documentation.
