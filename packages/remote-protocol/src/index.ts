@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 
 import { z } from 'zod';
 
-export const PROTOCOL_VERSION = '0.1.0';
+export const PROTOCOL_VERSION = '0.2.0';
+
+export const capabilitiesSchema = z.object({
+  supportsApprovals: z.boolean(),
+  supportsCommandStreaming: z.boolean(),
+  supportsDiffStreaming: z.boolean(),
+  supportsPlanUpdates: z.boolean(),
+});
 
 export const commandNameSchema = z.enum([
   'capabilities.get',
@@ -68,6 +75,7 @@ export const eventEnvelopeSchema = envelopeSchema.extend({
 
 export type CommandName = z.infer<typeof commandNameSchema>;
 export type EventName = z.infer<typeof eventNameSchema>;
+export type Capabilities = z.infer<typeof capabilitiesSchema>;
 export type RequestEnvelope = z.infer<typeof requestEnvelopeSchema>;
 export type ResponseEnvelope = z.infer<typeof responseEnvelopeSchema>;
 export type EventEnvelope = z.infer<typeof eventEnvelopeSchema>;
@@ -106,6 +114,27 @@ export function createEventEnvelope(
     id,
     name,
     payload,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+export function createResponseEnvelope(
+  requestId: string,
+  success: boolean,
+  options: {
+    id?: string;
+    payload?: ResponseEnvelope['payload'];
+    error?: ResponseEnvelope['error'];
+  } = {},
+): ResponseEnvelope {
+  return responseEnvelopeSchema.parse({
+    protocolVersion: PROTOCOL_VERSION,
+    kind: 'response',
+    id: options.id ?? randomUUID(),
+    requestId,
+    success,
+    payload: options.payload,
+    error: options.error,
     timestamp: new Date().toISOString(),
   });
 }

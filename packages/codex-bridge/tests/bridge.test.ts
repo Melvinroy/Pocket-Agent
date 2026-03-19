@@ -1,35 +1,72 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  createRequestEnvelope,
-  type ProtocolTransport,
-} from '@codex-remote/remote-protocol';
+import { createRequestEnvelope } from '@codex-remote/remote-protocol';
 
-import { StdioCodexBridge } from '../src/index.js';
+import {
+  createMockCodexBridge,
+  spawnStdioCodexBridge,
+  StdioCodexBridge,
+} from '../src/index.js';
+
+const fixturePath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'fixtures',
+  'mock-codex-app-server.mjs',
+);
 
 describe('codex bridge', () => {
-  it('sends handshake through the transport', async () => {
-    const send = vi
-      .fn<ProtocolTransport['send']>()
-      .mockResolvedValue(undefined);
-    const bridge = new StdioCodexBridge({ send });
+  it('returns mock capabilities for bootstrap paths', async () => {
+    const bridge = createMockCodexBridge();
 
-    const capabilities = await bridge.handshake();
-
-    expect(send).toHaveBeenCalledOnce();
-    expect(capabilities.supportsPlanUpdates).toBe(true);
+    await expect(bridge.handshake()).resolves.toEqual({
+      supportsApprovals: true,
+      supportsCommandStreaming: true,
+      supportsDiffStreaming: true,
+      supportsPlanUpdates: true,
+    });
   });
 
-  it('replays subscribed fixture events', () => {
-    const bridge = new StdioCodexBridge({
-      send: vi.fn().mockResolvedValue(undefined),
+  it('handshakes against a spawned stdio process', async () => {
+    const bridge = spawnStdioCodexBridge(
+      {
+        command: process.execPath,
+        args: [fixturePath],
+      },
+      () => 'req-capabilities',
+    );
+
+    await expect(bridge.handshake()).resolves.toEqual({
+      supportsApprovals: true,
+      supportsCommandStreaming: true,
+      supportsDiffStreaming: true,
+      supportsPlanUpdates: true,
+    });
+
+    await bridge.dispose();
+  });
+
+  it('streams lifecycle and output events from the child process', async () => {
+    const bridge = spawnStdioCodexBridge({
+      command: process.execPath,
+      args: [fixturePath],
     });
     const listener = vi.fn();
 
     const unsubscribe = bridge.subscribe(listener);
-    bridge.emitFixtureEvent('turn.output', { line: 'booting' });
+    await bridge.handshake();
+    await bridge.send(createRequestEnvelope('threads.list', {}, 'req-threads'));
     unsubscribe();
+    await bridge.dispose();
 
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'event',
+        name: 'bridge.lifecycle',
+      }),
+    );
     expect(listener).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'event',
@@ -38,19 +75,30 @@ describe('codex bridge', () => {
     );
   });
 
-  it('forwards explicit requests', async () => {
-    const send = vi
-      .fn<ProtocolTransport['send']>()
-      .mockResolvedValue(undefined);
-    const bridge = new StdioCodexBridge({ send });
+  it('rejects unsupported requests from the child process', async () => {
+    const bridge = spawnStdioCodexBridge({
+      command: process.execPath,
+      args: [fixturePath],
+    });
 
-    await bridge.send(createRequestEnvelope('threads.list', {}, 'req-threads'));
+    await expect(
+      bridge.send(
+        createRequestEnvelope('commands.exec', { command: 'pwd' }, 'req-exec'),
+      ),
+    ).rejects.toThrow(/Unsupported request/);
 
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'request',
-        name: 'threads.list',
-      }),
-    );
+    await bridge.dispose();
+  });
+
+  it('marks the bridge as stopped after disposal', async () => {
+    const bridge = spawnStdioCodexBridge({
+      command: process.execPath,
+      args: [fixturePath],
+    });
+
+    await bridge.dispose();
+
+    expect(bridge.isRunning()).toBe(false);
+    expect(bridge).toBeInstanceOf(StdioCodexBridge);
   });
 });

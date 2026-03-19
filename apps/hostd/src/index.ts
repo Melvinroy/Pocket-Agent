@@ -13,12 +13,13 @@ export async function run(argv = process.argv.slice(2)): Promise<string> {
   const bridge = createMockCodexBridge();
 
   if (argv.includes('--health')) {
+    const capabilities = await createBridgeCapabilities(bridge);
     const payload = {
       status: 'ok',
-      version: '0.1.0',
+      version: '0.2.0',
       host: config,
       policy: DEFAULT_SECURITY_POLICY,
-      bridge: createBridgeCapabilities(bridge),
+      bridge: capabilities,
     };
 
     return JSON.stringify(redactSecrets(payload), null, 2);

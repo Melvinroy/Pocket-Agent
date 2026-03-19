@@ -10,6 +10,7 @@ export default tseslint.config(
       '**/coverage/**',
       'node_modules/**',
       'apps/web/next-env.d.ts',
+      '**/tests/fixtures/**',
     ],
   },
   js.configs.recommended,

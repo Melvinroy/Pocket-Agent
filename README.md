@@ -4,7 +4,7 @@ Codex Remote is an open-source, phone-first remote coding environment for a loca
 
 ## Status
 
-This repository is in active bootstrap. Version `0.1.0` establishes the monorepo, repo standards, CI, initial architecture records, and typed package skeletons for the host daemon, remote protocol, and Codex bridge.
+This repository is in active bootstrap. Version `0.2.0` establishes the monorepo, repo standards, CI, initial architecture records, and a host-only Codex bridge alpha over stdio for typed request, response, and event handling.
 
 ## Principles
 
